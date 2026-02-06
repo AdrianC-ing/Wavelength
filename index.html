@@ -31,7 +31,6 @@
       --dialNeedle2: rgba(255,255,255,.55);
       --dialCenter: #c73737;    /* red knob */
       --dialTextDark: rgba(0,0,0,.78);
-      --dialTextLight: rgba(255,255,255,.88);
     }
 
     @media (prefers-color-scheme: light){
@@ -437,7 +436,7 @@
             </div>
 
             <div class="notice">
-              Dial estilo “juego físico”: ventana pequeña con 2–3–4–3–2.
+              La ventana de puntuación <b>rota con el objetivo</b> (ya no se queda fija).
             </div>
           </div>
         </div>
@@ -559,7 +558,7 @@
       const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
       const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-      // Value 0..100 -> radians on upper semicircle
+      // 0..100 -> radians on upper semicircle:
       // 0 = left (π), 50 = up (π/2), 100 = right (0)
       function valueToRad(v){
         const x = clamp(v,0,100)/100;
@@ -703,12 +702,16 @@
       }
 
       function donutSectorPath(cx, cy, rOuter, rInner, startRad, endRad){
-        const p1o = polarPoint(cx, cy, rOuter, startRad);
-        const p2o = polarPoint(cx, cy, rOuter, endRad);
-        const p2i = polarPoint(cx, cy, rInner, endRad);
-        const p1i = polarPoint(cx, cy, rInner, startRad);
+        // ensure ordering for arc math
+        let s = startRad, e = endRad;
+        if (s < e) { const tmp=s; s=e; e=tmp; }
 
-        const delta = Math.abs(endRad - startRad);
+        const p1o = polarPoint(cx, cy, rOuter, s);
+        const p2o = polarPoint(cx, cy, rOuter, e);
+        const p2i = polarPoint(cx, cy, rInner, e);
+        const p1i = polarPoint(cx, cy, rInner, s);
+
+        const delta = Math.abs(e - s);
         const largeArc = delta > Math.PI ? 1 : 0;
 
         return [
@@ -728,33 +731,46 @@
         return `<line x1="${p1.x.toFixed(2)}" y1="${p1.y.toFixed(2)}" x2="${p2.x.toFixed(2)}" y2="${p2.y.toFixed(2)}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" opacity="${opacity}"></line>`;
       }
 
-      // Visual window like the physical game:
-      // A fixed small fan (not centered on the target) and five discrete slices 2–3–4–3–2.
-      // The *scoring logic* still uses ±5/±12/±20 around target (unchanged).
+      // ✅ FIX: scoring fan rotates WITH the target.
+      // Visual fan spans exactly the ±20 band (w2), and contains 5 slices: 2–3–4–3–2.
+      // Also clamps/offsets to stay fully inside [0, π] when target near edges.
       function scoringFanSVG(targetVal){
         const cx=200, cy=200;
 
-        // Fan placement: anchored near the left side like the photo.
-        // We'll render it in the arc region between angles ~150° to ~110° (in our rad system: π is left, 0 is right).
-        // That corresponds to radians around [~2.62 .. ~1.92]. We'll define as "fanStartRad .. fanEndRad".
-        const fanStartRad = 2.62; // ~150°
-        const fanEndRad   = 2.02; // ~116°
-        const fanMidRad = (fanStartRad + fanEndRad)/2;
+        const radPerVal = Math.PI / 100;
+        const halfSpan = WEDGES.w2 * radPerVal; // ±20 => 0.628.. rad (~36°)
 
-        // Donut thickness to mimic plastic window
+        const cRad = valueToRad(targetVal);
+
+        // Desired [start..end] around target (start more "left", end more "right")
+        let fanStart = cRad + halfSpan;
+        let fanEnd   = cRad - halfSpan;
+
+        // Keep width constant but shift window if it would leave semicircle bounds.
+        if (fanStart > Math.PI) {
+          const shift = fanStart - Math.PI;
+          fanStart = Math.PI;
+          fanEnd += shift;
+        }
+        if (fanEnd < 0) {
+          const shift = -fanEnd;
+          fanEnd = 0;
+          fanStart -= shift;
+        }
+        fanStart = clamp(fanStart, 0, Math.PI);
+        fanEnd   = clamp(fanEnd,   0, Math.PI);
+
+        // Donut thickness like the board window
         const rOuter = 160;
         const rInner = 85;
 
-        // Five slices arranged contiguous inside the fan: 2-3-4-3-2
-        // Make the center slice (4) a bit wider visually than the 3s, and 2s slightly wider than 3s
-        // to match the "fan" look. (Visual only; scoring stays correct.)
-        const totalSpan = Math.abs(fanEndRad - fanStartRad);
+        // Five contiguous slices across [fanStart..fanEnd]
+        const totalSpan = Math.abs(fanStart - fanEnd);
+
+        // Aesthetic weights similar to photo: 2 slightly wide, 3 slightly narrow, 4 centered.
         const weights = [1.15, 0.95, 1.05, 0.95, 1.15];
         const wsum = weights.reduce((a,b)=>a+b,0);
         const spans = weights.map(w => totalSpan*(w/wsum));
-
-        const slices = [];
-        let cur = fanStartRad;
 
         const colors = [
           "var(--dialWindow2)",
@@ -765,16 +781,19 @@
         ];
         const labels = ["2","3","4","3","2"];
 
+        let cur = fanStart;
+        const parts = [];
+
         for (let i=0;i<5;i++){
-          const next = cur - spans[i]; // move "towards up" (smaller rad)
+          const next = cur - spans[i]; // progress towards fanEnd
           const s = cur;
           const e = next;
-          const path = donutSectorPath(cx, cy, rOuter, rInner, s, e);
 
+          const path = donutSectorPath(cx, cy, rOuter, rInner, s, e);
           const mid = (s+e)/2;
           const p = polarPoint(cx, cy, (rOuter+rInner)/2 + 2, mid);
 
-          slices.push(`
+          parts.push(`
             <path d="${path}" fill="${colors[i]}" opacity="0.95"></path>
             <text x="${p.x.toFixed(2)}" y="${p.y.toFixed(2)}"
                   text-anchor="middle" dominant-baseline="middle"
@@ -787,29 +806,14 @@
           cur = next;
         }
 
-        // Visual highlight: a subtle outline and a tiny pointer line marking the actual target (optional)
-        // We'll draw a thin line pointing to the target value, but only in reveal/psychic.
-        const tRad = valueToRad(targetVal);
-        const tP1 = polarPoint(cx, cy, 200, tRad);
-        const tP2 = polarPoint(cx, cy, rInner-6, tRad);
+        // Outline of the full fan window (subtle)
+        const outline = donutSectorPath(cx, cy, rOuter, rInner, fanStart, fanEnd);
 
         return `
           <g>
-            <!-- Subtle shadow behind fan -->
-            <path d="${donutSectorPath(cx, cy, rOuter+1, rInner-1, fanStartRad, fanEndRad)}"
-                  fill="rgba(0,0,0,.08)"></path>
-
-            <!-- Fan slices -->
-            ${slices.join("")}
-
-            <!-- Fan outline -->
-            <path d="${donutSectorPath(cx, cy, rOuter, rInner, fanStartRad, fanEndRad)}"
-                  fill="none" stroke="rgba(0,0,0,.22)" stroke-width="1"></path>
-
-            <!-- (Optional) target marker line, subtle -->
-            <line x1="${tP1.x.toFixed(2)}" y1="${tP1.y.toFixed(2)}"
-                  x2="${tP2.x.toFixed(2)}" y2="${tP2.y.toFixed(2)}"
-                  stroke="rgba(0,0,0,.22)" stroke-width="2" stroke-linecap="round" opacity="0.35"></line>
+            <path d="${outline}" fill="rgba(0,0,0,.06)"></path>
+            ${parts.join("")}
+            <path d="${outline}" fill="none" stroke="rgba(0,0,0,.22)" stroke-width="1"></path>
           </g>
         `;
       }
@@ -818,7 +822,6 @@
         const t = target ?? 50;
         const g = guess ?? 50;
 
-        // Half-disc face path
         const halfDisc = `M 40 200 A 160 160 0 0 1 360 200 L 200 200 Z`;
 
         return `
@@ -831,12 +834,12 @@
                   </filter>
                 </defs>
 
-                <!-- Face (filled semicircle like the physical board) -->
+                <!-- Face -->
                 <g filter="url(#softShadow)">
                   <path d="${halfDisc}" fill="var(--dialFace)" stroke="var(--dialFaceEdge)" stroke-width="2"></path>
                 </g>
 
-                <!-- Ticks (very subtle, like engraved) -->
+                <!-- Ticks -->
                 ${
                   Array.from({length: 21}, (_,i)=>{
                     const v = i*5;
@@ -851,10 +854,10 @@
                   }).join("")
                 }
 
-                <!-- Scoring fan (only when target visible) -->
+                <!-- Scoring fan (rotates with target) -->
                 ${showTarget ? scoringFanSVG(t) : ""}
 
-                <!-- Guess needle (red, like the physical pointer) -->
+                <!-- Guess needle -->
                 ${showGuess ? `
                   <g filter="url(#softShadow)">
                     ${needleLineSVG(g, 200, 52, "var(--dialNeedle)", 7, 0.95)}
@@ -862,7 +865,7 @@
                   </g>
                 ` : ""}
 
-                <!-- Center knob (big red circle) -->
+                <!-- Center knob -->
                 <g filter="url(#softShadow)">
                   <circle cx="200" cy="200" r="58" fill="var(--dialCenter)"></circle>
                   <circle cx="200" cy="200" r="58" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="2"></circle>
@@ -988,7 +991,7 @@
           });
 
           $("#btnGoPsychic").addEventListener("click", () => {
-            store.target = randomTarget();
+            store.target = randomTarget(); // aleatoriedad mantenida
             store.state = STATES.PSYCHIC;
             showToast("Objetivo generado. Solo el Psíquico mira.");
             render();
