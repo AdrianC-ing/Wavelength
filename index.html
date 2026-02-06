@@ -189,7 +189,6 @@
 
     .hr{ height:1px; background: var(--line); margin: 10px 0; }
 
-    /* ===== Dial (semi-círculo) ===== */
     .dialWrap{
       display:grid;
       grid-template-columns: 1fr;
@@ -276,7 +275,6 @@
     }
     .numRow b{ color: var(--text); font-weight: 900; }
 
-    /* Sidebar */
     .playerBox{
       border-radius: 18px;
       border: 1px solid var(--line);
@@ -303,7 +301,6 @@
     }
     .role b{ color: var(--text); }
 
-    /* Modal */
     .modalBackdrop{
       position:fixed; inset:0;
       background: rgba(0,0,0,.55);
@@ -339,7 +336,6 @@
     .modal p, .modal li{ font-size: 12.5px; color: var(--muted); }
     .modal ul{ margin: 8px 0 0 18px; padding: 0; }
 
-    /* Toast */
     .toast{
       position: fixed;
       left:50%; bottom:18px;
@@ -388,7 +384,6 @@
     </header>
 
     <main class="grid">
-      <!-- Main -->
       <section class="card" aria-label="Panel principal">
         <div class="hd">
           <div class="title">
@@ -403,7 +398,6 @@
         <div class="bd" id="mainArea"></div>
       </section>
 
-      <!-- Sidebar -->
       <aside class="card" aria-label="Marcador">
         <div class="hd">
           <div class="title">
@@ -453,7 +447,7 @@
             </div>
 
             <div class="notice">
-              En “Psíquico” se muestra el objetivo. En “Adivinar” y “Revelación” solo lo veréis cuando toque.
+              En “Psíquico” se muestra el objetivo. En “Adivinar” solo lo veréis cuando toque.
             </div>
           </div>
         </div>
@@ -461,7 +455,6 @@
     </main>
   </div>
 
-  <!-- Rules Modal -->
   <div class="modalBackdrop" id="modalRules" role="dialog" aria-modal="true" aria-labelledby="modalRulesTitle">
     <div class="modal">
       <div class="mhd">
@@ -471,8 +464,8 @@
       <div class="mbd">
         <h3>Flujo</h3>
         <ul>
-          <li><b>Nueva ronda:</b> carta (dos extremos) + pista (opcional para memoria).</li>
-          <li><b>Psíquico:</b> un jugador ve el objetivo (0–100) y dice una pista de una sola idea.</li>
+          <li><b>Nueva ronda:</b> carta (dos extremos) + pista opcional.</li>
+          <li><b>Psíquico:</b> un jugador ve el objetivo (0–100) y dice una pista.</li>
           <li><b>Adivinar:</b> el otro jugador mueve el dial (0–100) y bloquea.</li>
           <li><b>Revelación:</b> se muestra el objetivo y se puntúa. Luego se intercambian roles.</li>
         </ul>
@@ -501,7 +494,6 @@
     (() => {
       "use strict";
 
-      // ===== Cards (>=60) =====
       const CARDS = [
         { left:"Frío", right:"Caliente" },
         { left:"Aburrido", right:"Emocionante" },
@@ -578,17 +570,20 @@
         { left:"Creativo", right:"Convencional" },
       ];
 
-      // ===== Constants / Pure functions =====
       const GOAL = 10;
       const WEDGES = { w4: 5, w3: 12, w2: 20 };
 
       const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
       const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-      function valueToDeg(v){ // 0..100 => -90..90
-        const x = clamp(v, 0, 100) / 100;
-        return -90 + x * 180;
+      // *** MAPEADO CORRECTO Y ÚNICO ***
+      // Valor 0..100 -> ángulo en radianes sobre semicircunferencia superior:
+      // 0 = izquierda (π), 50 = arriba (π/2), 100 = derecha (0)
+      function valueToRad(v){
+        const x = clamp(v,0,100)/100;
+        return Math.PI * (1 - x); // π..0
       }
+
       function randomTarget(){ return rnd(0, 100); }
 
       function scoreGuess(target, guess){
@@ -599,13 +594,12 @@
         return { pts: 0, band: "MISS" };
       }
 
-      // ===== Minimal state machine =====
       const STATES = Object.freeze({
         SETUP: "SETUP",
-        ROUND: "ROUND",           // shows card + start psychic
-        PSYCHIC: "PSYCHIC",       // target visible
-        GUESS: "GUESS",           // slider, no target
-        REVEAL: "REVEAL",         // both visible + scoring
+        ROUND: "ROUND",
+        PSYCHIC: "PSYCHIC",
+        GUESS: "GUESS",
+        REVEAL: "REVEAL",
         OVER: "OVER"
       });
 
@@ -646,7 +640,6 @@
       function openModal(m){ m.classList.add("show"); m.querySelector("button")?.focus(); }
       function closeModal(m){ m.classList.remove("show"); }
 
-      // ===== Game store =====
       const store = {
         state: STATES.SETUP,
         goal: GOAL,
@@ -654,14 +647,13 @@
           { name: "Jugador 1", score: 0 },
           { name: "Jugador 2", score: 0 }
         ],
-        psychicIndex: 0, // 0 or 1
+        psychicIndex: 0,
         card: null,
         clue: "",
         target: null,
         guess: 50,
         scored: null,
-        deck: [],
-        used: new Set()
+        deck: []
       };
 
       function buildDeck(){
@@ -694,7 +686,6 @@
       function renderSidebar(){
         els.pillGoal.innerHTML = `<strong>Objetivo:</strong> ${store.goal}`;
         const psychic = store.psychicIndex;
-        const guesser = 1 - psychic;
 
         els.p1Name.textContent = store.players[0].name;
         els.p2Name.textContent = store.players[1].name;
@@ -725,15 +716,55 @@
         }[m]));
       }
 
-      // ===== Dial renderer =====
-      function dialHTML({ left, right, showTarget, target, showGuess, guess }){
-        const tDeg = valueToDeg(target ?? 50);
-        const gDeg = valueToDeg(guess ?? 50);
+      function polarPoint(cx, cy, r, rad){
+        // SVG: y crece hacia abajo, para mantener semicircunferencia superior usamos cy - sin()
+        return { x: cx + Math.cos(rad)*r, y: cy - Math.sin(rad)*r };
+      }
 
-        // SVG geometry: semicircle radius 160 centered at (200,200) in viewBox 0 0 400 240
-        // Arc from left (40,200) to right (360,200) with radius 160
-        // Needle anchored at (200,200)
-        const showWedges = !!showTarget;
+      function sectorPath(cx, cy, r, startRad, endRad){
+        const p1 = polarPoint(cx, cy, r, startRad);
+        const p2 = polarPoint(cx, cy, r, endRad);
+        const delta = Math.abs(endRad - startRad);
+        const largeArc = delta > Math.PI ? 1 : 0;
+        // barrido "1" para seguir el arco superior de izq->der en nuestra parametrización
+        return `M ${cx} ${cy} L ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)} Z`;
+      }
+
+      function wedgesSVG(center){
+        const cx=200, cy=200;
+        const c = clamp(center,0,100);
+        const degPerVal = Math.PI / 100; // 100 valores abarcan π rad en semicircunferencia
+        const a2 = WEDGES.w2 * degPerVal;
+        const a3 = WEDGES.w3 * degPerVal;
+        const a4 = WEDGES.w4 * degPerVal;
+
+        const cRad = valueToRad(c);
+        const clampToSemi = (rad) => clamp(rad, 0, Math.PI);
+
+        const mk = (radius, half, fill) => {
+          const s = clampToSemi(cRad - half);
+          const e = clampToSemi(cRad + half);
+          return `<path d="${sectorPath(cx, cy, radius, s, e)}" fill="${fill}"></path>`;
+        };
+
+        return `
+          ${mk(160, a2, "var(--w2)")}
+          ${mk(142, a3, "var(--w3)")}
+          ${mk(120, a4, "var(--w4)")}
+        `;
+      }
+
+      function needleLineSVG(value, r1, r2, stroke, strokeWidth, opacity=1){
+        const cx=200, cy=200;
+        const rad = valueToRad(value);
+        const p1 = polarPoint(cx, cy, r1, rad);
+        const p2 = polarPoint(cx, cy, r2, rad);
+        return `<line x1="${p1.x.toFixed(2)}" y1="${p1.y.toFixed(2)}" x2="${p2.x.toFixed(2)}" y2="${p2.y.toFixed(2)}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" opacity="${opacity}"></line>`;
+      }
+
+      function dialHTML({ left, right, showTarget, target, showGuess, guess }){
+        const t = target ?? 50;
+        const g = guess ?? 50;
 
         return `
           <div class="dial">
@@ -743,58 +774,53 @@
                   <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
                     <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="rgba(0,0,0,.35)"/>
                   </filter>
-                  <linearGradient id="needleGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="rgba(255,255,255,.92)"/>
-                    <stop offset="100%" stop-color="rgba(255,255,255,.10)"/>
-                  </linearGradient>
-                  <linearGradient id="targetGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="rgba(125,211,252,.98)"/>
-                    <stop offset="100%" stop-color="rgba(125,211,252,.14)"/>
-                  </linearGradient>
                 </defs>
 
                 <!-- Base arc -->
                 <path d="M 40 200 A 160 160 0 0 1 360 200"
                       fill="none" stroke="rgba(255,255,255,.35)" stroke-width="10" stroke-linecap="round"/>
+
                 <!-- Ticks -->
-                ${Array.from({length: 21}, (_,i)=>{
-                  const v = i*5; // 0..100
-                  const a = valueToDeg(v) * Math.PI/180;
-                  const cx = 200, cy = 200;
-                  const r1 = 150, r2 = (i%5===0) ? 132 : 140;
-                  const x1 = cx + Math.cos(a) * r1;
-                  const y1 = cy + Math.sin(a) * r1;
-                  const x2 = cx + Math.cos(a) * r2;
-                  const y2 = cy + Math.sin(a) * r2;
-                  const sw = (i%5===0) ? 2.2 : 1.2;
-                  const op = (i%5===0) ? .26 : .18;
-                  return `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="rgba(255,255,255,${op})" stroke-width="${sw}" />`;
-                }).join("")}
+                ${
+                  Array.from({length: 21}, (_,i)=>{
+                    const v = i*5;
+                    const cx=200, cy=200;
+                    const rad = valueToRad(v);
+                    const r1 = 150;
+                    const r2 = (i%5===0) ? 132 : 140;
+                    const p1 = polarPoint(cx, cy, r1, rad);
+                    const p2 = polarPoint(cx, cy, r2, rad);
+                    const sw = (i%5===0) ? 2.2 : 1.2;
+                    const op = (i%5===0) ? .26 : .18;
+                    return `<line x1="${p1.x.toFixed(2)}" y1="${p1.y.toFixed(2)}" x2="${p2.x.toFixed(2)}" y2="${p2.y.toFixed(2)}" stroke="rgba(255,255,255,${op})" stroke-width="${sw}" />`;
+                  }).join("")
+                }
 
-                <!-- Wedges centered on target (only when target visible) -->
-                ${showWedges ? wedgesSVG(target ?? 50) : ""}
+                <!-- Wedges (only when target visible) -->
+                ${showTarget ? wedgesSVG(t) : ""}
 
-                <!-- Target needle (thin) -->
+                <!-- Target needle -->
                 ${showTarget ? `
-                  <g transform="rotate(${tDeg} 200 200)" filter="url(#softShadow)">
-                    <rect x="199" y="58" width="2" height="142" rx="1" fill="url(#targetGrad)"></rect>
+                  <g filter="url(#softShadow)">
+                    ${needleLineSVG(t, 200, 64, "rgba(125,211,252,.95)", 3, 0.95)}
+                    ${needleLineSVG(t, 200, 64, "rgba(125,211,252,.30)", 8, 0.22)}
                   </g>
                 ` : ""}
 
                 <!-- Guess needle -->
                 ${showGuess ? `
-                  <g transform="rotate(${gDeg} 200 200)" filter="url(#softShadow)">
-                    <rect x="198" y="52" width="4" height="148" rx="2" fill="url(#needleGrad)"></rect>
+                  <g filter="url(#softShadow)">
+                    ${needleLineSVG(g, 200, 56, "rgba(255,255,255,.92)", 5, 0.95)}
+                    ${needleLineSVG(g, 200, 56, "rgba(255,255,255,.20)", 10, 0.20)}
                   </g>
-                  <circle cx="200" cy="200" r="12" fill="rgba(255,255,255,.12)" stroke="rgba(255,255,255,.25)"></circle>
-                ` : `
-                  <circle cx="200" cy="200" r="12" fill="rgba(255,255,255,.08)" stroke="rgba(255,255,255,.18)"></circle>
-                `}
+                ` : ""}
+
+                <circle cx="200" cy="200" r="12" fill="rgba(255,255,255,.10)" stroke="rgba(255,255,255,.22)"></circle>
               </svg>
 
               <div class="dialLabels" aria-hidden="true">
                 <div class="side">${escapeHtml(left)}</div>
-                <div class="mid">${showTarget ? `Obj: ${target}` : `0–100`}</div>
+                <div class="mid">${showTarget ? `Obj: ${t}` : `0–100`}</div>
                 <div class="side" style="text-align:right;">${escapeHtml(right)}</div>
               </div>
             </div>
@@ -802,46 +828,6 @@
         `;
       }
 
-      function wedgesSVG(center){
-        const cDeg = valueToDeg(center);
-        // We approximate wedges as translucent sectors with different radii.
-        // We'll draw 3 sectors (w2, w3, w4) with same angle spans based on wedge radii (in "value space").
-        // Convert wedge "value" to degrees: 180deg span across 100 values => 1.8deg per value.
-        const degPerVal = 180 / 100;
-        const a2 = WEDGES.w2 * degPerVal;
-        const a3 = WEDGES.w3 * degPerVal;
-        const a4 = WEDGES.w4 * degPerVal;
-
-        // Sector path helper centered at (200,200)
-        const sector = (radius, halfAngleDeg, fill) => {
-          const cx=200, cy=200;
-          const start = (cDeg - halfAngleDeg) * Math.PI/180;
-          const end   = (cDeg + halfAngleDeg) * Math.PI/180;
-
-          const x1 = cx + Math.cos(start)*radius;
-          const y1 = cy + Math.sin(start)*radius;
-          const x2 = cx + Math.cos(end)*radius;
-          const y2 = cy + Math.sin(end)*radius;
-
-          const largeArc = (halfAngleDeg*2) > 180 ? 1 : 0;
-          return `
-            <path d="M ${cx} ${cy}
-                     L ${x1.toFixed(2)} ${y1.toFixed(2)}
-                     A ${radius} ${radius} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}
-                     Z"
-                  fill="${fill}" />
-          `;
-        };
-
-        // radii tuned to look like the physical wedge window
-        return `
-          ${sector(160, a2, "var(--w2)")}
-          ${sector(142, a3, "var(--w3)")}
-          ${sector(120, a4, "var(--w4)")}
-        `;
-      }
-
-      // ===== Views =====
       function render(){
         renderSidebar();
         const s = store.state;
@@ -887,7 +873,7 @@
           $("#btnStart").addEventListener("click", () => {
             store.players[0].score = 0;
             store.players[1].score = 0;
-            store.psychicIndex = 0; // empieza jugador 1
+            store.psychicIndex = 0;
             buildDeck();
             resetRound();
             store.state = STATES.ROUND;
@@ -899,7 +885,7 @@
 
         if (s === STATES.ROUND){
           const psychic = store.psychicIndex;
-          setPhase("Nueva ronda", `${store.players[psychic].name} es Psíquico. Selecciona carta y (opcional) escribe la pista para recordarla.`);
+          setPhase("Nueva ronda", `${store.players[psychic].name} es Psíquico. Selecciona carta y (opcional) escribe la pista.`);
           els.main.innerHTML = `
             <div class="col" style="gap:14px;">
               <div class="row" style="justify-content:space-between; align-items:flex-start;">
@@ -1051,9 +1037,8 @@
           rng.addEventListener("input", () => {
             store.guess = clamp(parseInt(rng.value,10), 0, 100);
             gVal.textContent = store.guess;
-            // re-render dial only (cheap full render is ok too)
             render();
-            store.state = STATES.GUESS; // keep
+            store.state = STATES.GUESS;
           });
 
           $("#btnBackPsychic").addEventListener("click", () => {
@@ -1114,10 +1099,8 @@
           });
 
           $("#btnNext").addEventListener("click", () => {
-            // En 2 jugadores, lo más limpio es puntuar al adivinador (quien toma decisión).
             store.players[guesser].score += pts;
 
-            // Win?
             if (store.players[0].score >= store.goal || store.players[1].score >= store.goal){
               store.state = STATES.OVER;
               render();
@@ -1125,10 +1108,8 @@
               return;
             }
 
-            // Swap roles
             store.psychicIndex = 1 - store.psychicIndex;
 
-            // Next round
             resetRound();
             store.state = STATES.ROUND;
             showToast("Roles cambiados. Nueva ronda.");
@@ -1188,7 +1169,6 @@
         }
       }
 
-      // ===== Global controls =====
       els.btnRules.addEventListener("click", () => openModal(els.modalRules));
       els.btnCloseRules.addEventListener("click", () => closeModal(els.modalRules));
       els.modalRules.addEventListener("click", (e)=>{ if (e.target === els.modalRules) closeModal(els.modalRules); });
@@ -1228,14 +1208,11 @@
         store.guess = 50;
         store.scored = null;
         store.deck = [];
-        store.used = new Set();
         store.state = STATES.SETUP;
         showToast("Reset completado.");
         render();
       });
 
-      // ===== Boot =====
-      // Deja la app en SETUP y renderiza. Esto garantiza que al abrir se vea UI y el dial.
       render();
     })();
   </script>
