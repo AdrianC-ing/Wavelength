@@ -430,13 +430,13 @@
             <div class="hr"></div>
 
             <div class="legend" aria-label="Leyenda de puntuación">
-              <span class="lg"><span class="sw w4"></span>4 pts ±5</span>
-              <span class="lg"><span class="sw w3"></span>3 pts ±12</span>
-              <span class="lg"><span class="sw w2"></span>2 pts ±20</span>
+              <span class="lg"><span class="sw w4"></span>4 pts ±3</span>
+              <span class="lg"><span class="sw w3"></span>3 pts ±6</span>
+              <span class="lg"><span class="sw w2"></span>2 pts ±10</span>
             </div>
 
             <div class="notice">
-              La ventana de puntuación <b>rota con el objetivo</b> (ya no se queda fija).
+              Ventana de puntuación reducida a la mitad (rangos y visual).
             </div>
           </div>
         </div>
@@ -461,9 +461,9 @@
 
         <h3>Puntuación</h3>
         <ul>
-          <li>±5: <b>4 puntos</b></li>
-          <li>±12: <b>3 puntos</b></li>
-          <li>±20: <b>2 puntos</b></li>
+          <li>±3: <b>4 puntos</b></li>
+          <li>±6: <b>3 puntos</b></li>
+          <li>±10: <b>2 puntos</b></li>
           <li>Fuera: <b>0 puntos</b></li>
         </ul>
       </div>
@@ -553,13 +553,13 @@
       ];
 
       const GOAL = 10;
-      const WEDGES = { w4: 5, w3: 12, w2: 20 };
+
+      // ✅ Reduced to half (coherent scoring + visuals)
+      const WEDGES = { w4: 3, w3: 6, w2: 10 };
 
       const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
       const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-      // 0..100 -> radians on upper semicircle:
-      // 0 = left (π), 50 = up (π/2), 100 = right (0)
       function valueToRad(v){
         const x = clamp(v,0,100)/100;
         return Math.PI * (1 - x);
@@ -702,7 +702,6 @@
       }
 
       function donutSectorPath(cx, cy, rOuter, rInner, startRad, endRad){
-        // ensure ordering for arc math
         let s = startRad, e = endRad;
         if (s < e) { const tmp=s; s=e; e=tmp; }
 
@@ -731,22 +730,17 @@
         return `<line x1="${p1.x.toFixed(2)}" y1="${p1.y.toFixed(2)}" x2="${p2.x.toFixed(2)}" y2="${p2.y.toFixed(2)}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" opacity="${opacity}"></line>`;
       }
 
-      // ✅ FIX: scoring fan rotates WITH the target.
-      // Visual fan spans exactly the ±20 band (w2), and contains 5 slices: 2–3–4–3–2.
-      // Also clamps/offsets to stay fully inside [0, π] when target near edges.
       function scoringFanSVG(targetVal){
         const cx=200, cy=200;
 
         const radPerVal = Math.PI / 100;
-        const halfSpan = WEDGES.w2 * radPerVal; // ±20 => 0.628.. rad (~36°)
+        const halfSpan = WEDGES.w2 * radPerVal; // now ±10
 
         const cRad = valueToRad(targetVal);
 
-        // Desired [start..end] around target (start more "left", end more "right")
         let fanStart = cRad + halfSpan;
         let fanEnd   = cRad - halfSpan;
 
-        // Keep width constant but shift window if it would leave semicircle bounds.
         if (fanStart > Math.PI) {
           const shift = fanStart - Math.PI;
           fanStart = Math.PI;
@@ -760,14 +754,11 @@
         fanStart = clamp(fanStart, 0, Math.PI);
         fanEnd   = clamp(fanEnd,   0, Math.PI);
 
-        // Donut thickness like the board window
         const rOuter = 160;
         const rInner = 85;
 
-        // Five contiguous slices across [fanStart..fanEnd]
         const totalSpan = Math.abs(fanStart - fanEnd);
 
-        // Aesthetic weights similar to photo: 2 slightly wide, 3 slightly narrow, 4 centered.
         const weights = [1.15, 0.95, 1.05, 0.95, 1.15];
         const wsum = weights.reduce((a,b)=>a+b,0);
         const spans = weights.map(w => totalSpan*(w/wsum));
@@ -785,7 +776,7 @@
         const parts = [];
 
         for (let i=0;i<5;i++){
-          const next = cur - spans[i]; // progress towards fanEnd
+          const next = cur - spans[i];
           const s = cur;
           const e = next;
 
@@ -806,7 +797,6 @@
           cur = next;
         }
 
-        // Outline of the full fan window (subtle)
         const outline = donutSectorPath(cx, cy, rOuter, rInner, fanStart, fanEnd);
 
         return `
@@ -821,7 +811,6 @@
       function dialHTML({ left, right, showTarget, target, showGuess, guess }){
         const t = target ?? 50;
         const g = guess ?? 50;
-
         const halfDisc = `M 40 200 A 160 160 0 0 1 360 200 L 200 200 Z`;
 
         return `
@@ -834,12 +823,10 @@
                   </filter>
                 </defs>
 
-                <!-- Face -->
                 <g filter="url(#softShadow)">
                   <path d="${halfDisc}" fill="var(--dialFace)" stroke="var(--dialFaceEdge)" stroke-width="2"></path>
                 </g>
 
-                <!-- Ticks -->
                 ${
                   Array.from({length: 21}, (_,i)=>{
                     const v = i*5;
@@ -854,10 +841,8 @@
                   }).join("")
                 }
 
-                <!-- Scoring fan (rotates with target) -->
                 ${showTarget ? scoringFanSVG(t) : ""}
 
-                <!-- Guess needle -->
                 ${showGuess ? `
                   <g filter="url(#softShadow)">
                     ${needleLineSVG(g, 200, 52, "var(--dialNeedle)", 7, 0.95)}
@@ -865,7 +850,6 @@
                   </g>
                 ` : ""}
 
-                <!-- Center knob -->
                 <g filter="url(#softShadow)">
                   <circle cx="200" cy="200" r="58" fill="var(--dialCenter)"></circle>
                   <circle cx="200" cy="200" r="58" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="2"></circle>
@@ -906,14 +890,7 @@
                 <b>Cómo se juega:</b> el Psíquico ve el objetivo y da una pista. El otro ajusta el dial. Se alternan roles cada ronda.
               </div>
 
-              ${dialHTML({
-                left:"Extremo izquierdo",
-                right:"Extremo derecho",
-                showTarget:false,
-                target:null,
-                showGuess:true,
-                guess: 50
-              })}
+              ${dialHTML({ left:"Extremo izquierdo", right:"Extremo derecho", showTarget:false, target:null, showGuess:true, guess: 50 })}
 
               <div class="row" style="justify-content:space-between;">
                 <span class="pill"><strong>Cartas:</strong> ${CARDS.length}</span>
@@ -953,14 +930,7 @@
                 </div>
               </div>
 
-              ${dialHTML({
-                left: store.card.left,
-                right: store.card.right,
-                showTarget:false,
-                target:null,
-                showGuess:true,
-                guess: 50
-              })}
+              ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:false, target:null, showGuess:true, guess: 50 })}
 
               <div class="row">
                 <div class="grow">
@@ -991,7 +961,7 @@
           });
 
           $("#btnGoPsychic").addEventListener("click", () => {
-            store.target = randomTarget(); // aleatoriedad mantenida
+            store.target = randomTarget();
             store.state = STATES.PSYCHIC;
             showToast("Objetivo generado. Solo el Psíquico mira.");
             render();
@@ -1008,14 +978,7 @@
                 <b>Solo el Psíquico</b>. No uses números. Una sola idea. Cuando termines, pulsa <b>Ocultar objetivo</b>.
               </div>
 
-              ${dialHTML({
-                left: store.card.left,
-                right: store.card.right,
-                showTarget:true,
-                target: store.target,
-                showGuess:false,
-                guess: store.guess
-              })}
+              ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:true, target: store.target, showGuess:false, guess: store.guess })}
 
               <div class="row">
                 <div class="grow">
@@ -1060,14 +1023,7 @@
                 Objetivo oculto. Ajusta la posición. Cuando estés seguro, bloquea.
               </div>
 
-              ${dialHTML({
-                left: store.card.left,
-                right: store.card.right,
-                showTarget:false,
-                target:null,
-                showGuess:true,
-                guess: store.guess
-              })}
+              ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:false, target:null, showGuess:true, guess: store.guess })}
 
               <div class="sliderRow">
                 <label for="rngGuess">Posición (0–100)</label>
@@ -1120,14 +1076,7 @@
 
           els.main.innerHTML = `
             <div class="col" style="gap:14px;">
-              ${dialHTML({
-                left: store.card.left,
-                right: store.card.right,
-                showTarget:true,
-                target: store.target,
-                showGuess:true,
-                guess: store.guess
-              })}
+              ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:true, target: store.target, showGuess:true, guess: store.guess })}
 
               <div class="row">
                 <span class="pill"><strong>Objetivo:</strong> ${store.target}</span>
@@ -1188,14 +1137,7 @@
                 </div>
               </div>
 
-              ${dialHTML({
-                left:"—",
-                right:"—",
-                showTarget:false,
-                target:null,
-                showGuess:true,
-                guess: 50
-              })}
+              ${dialHTML({ left:"—", right:"—", showTarget:false, target:null, showGuess:true, guess: 50 })}
 
               <div class="row" style="justify-content:center;">
                 <button class="btn primary" id="btnPlayAgain">Jugar otra vez</button>
