@@ -24,7 +24,7 @@
 
       --w2: rgba(251,191,36,.20);
       --w3: rgba(52,211,153,.22);
-      --w4: rgba(125,211,252,.26);
+      --w4: rgba(125,211,252,.28);
 
       --anim: 180ms cubic-bezier(.2,.8,.2,1);
     }
@@ -185,16 +185,9 @@
       border-color: rgba(125,211,252,.55);
       background: rgba(255,255,255,.07);
     }
-    textarea{ resize: vertical; min-height: 72px; }
 
     .hr{ height:1px; background: var(--line); margin: 10px 0; }
 
-    .dialWrap{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap: 12px;
-      justify-items: center;
-    }
     .dial{
       width: min(100%, 560px);
       border-radius: 22px;
@@ -333,7 +326,7 @@
     }
     .modal .mbd{ padding: 14px; }
     .modal h3{ margin:10px 0 6px; font-size: 13px; }
-    .modal p, .modal li{ font-size: 12.5px; color: var(--muted); }
+    .modal li{ font-size: 12.5px; color: var(--muted); }
     .modal ul{ margin: 8px 0 0 18px; padding: 0; }
 
     .toast{
@@ -447,7 +440,7 @@
             </div>
 
             <div class="notice">
-              En “Psíquico” se muestra el objetivo. En “Adivinar” solo lo veréis cuando toque.
+              Ventana de puntuación: <b>1/4</b> de la semicircunferencia (como el juego físico).
             </div>
           </div>
         </div>
@@ -476,13 +469,6 @@
           <li>±12: <b>3 puntos</b></li>
           <li>±20: <b>2 puntos</b></li>
           <li>Fuera: <b>0 puntos</b></li>
-        </ul>
-
-        <h3>Reglas de pista</h3>
-        <ul>
-          <li>Una sola idea (no dos pistas).</li>
-          <li>No uses números/porcentajes.</li>
-          <li>No uses las palabras de la carta ni sinónimos obvios.</li>
         </ul>
       </div>
     </div>
@@ -571,14 +557,19 @@
       ];
 
       const GOAL = 10;
+
+      // Lógica de puntos (se mantiene)
       const WEDGES = { w4: 5, w3: 12, w2: 20 };
+
+      // Ventana visual del juego físico: 1/4 de la semicircunferencia = 90°
+      // La semicircunferencia son 100 valores => 180° => 1 valor = 1.8°
+      // 90° => 50 valores => +/-25
+      const WINDOW_HALF_VAL = 25;
 
       const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
       const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-      // *** MAPEADO CORRECTO Y ÚNICO ***
-      // Valor 0..100 -> ángulo en radianes sobre semicircunferencia superior:
-      // 0 = izquierda (π), 50 = arriba (π/2), 100 = derecha (0)
+      // 0..100 -> radianes en semicircunferencia superior (0 izquierda π, 100 derecha 0)
       function valueToRad(v){
         const x = clamp(v,0,100)/100;
         return Math.PI * (1 - x); // π..0
@@ -717,41 +708,27 @@
       }
 
       function polarPoint(cx, cy, r, rad){
-        // SVG: y crece hacia abajo, para mantener semicircunferencia superior usamos cy - sin()
         return { x: cx + Math.cos(rad)*r, y: cy - Math.sin(rad)*r };
       }
 
-      function sectorPath(cx, cy, r, startRad, endRad){
-        const p1 = polarPoint(cx, cy, r, startRad);
-        const p2 = polarPoint(cx, cy, r, endRad);
+      // Donut sector (pie slice with thickness)
+      function donutSectorPath(cx, cy, rOuter, rInner, startRad, endRad){
+        const p1o = polarPoint(cx, cy, rOuter, startRad);
+        const p2o = polarPoint(cx, cy, rOuter, endRad);
+        const p2i = polarPoint(cx, cy, rInner, endRad);
+        const p1i = polarPoint(cx, cy, rInner, startRad);
+
         const delta = Math.abs(endRad - startRad);
         const largeArc = delta > Math.PI ? 1 : 0;
-        // barrido "1" para seguir el arco superior de izq->der en nuestra parametrización
-        return `M ${cx} ${cy} L ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)} Z`;
-      }
 
-      function wedgesSVG(center){
-        const cx=200, cy=200;
-        const c = clamp(center,0,100);
-        const degPerVal = Math.PI / 100; // 100 valores abarcan π rad en semicircunferencia
-        const a2 = WEDGES.w2 * degPerVal;
-        const a3 = WEDGES.w3 * degPerVal;
-        const a4 = WEDGES.w4 * degPerVal;
-
-        const cRad = valueToRad(c);
-        const clampToSemi = (rad) => clamp(rad, 0, Math.PI);
-
-        const mk = (radius, half, fill) => {
-          const s = clampToSemi(cRad - half);
-          const e = clampToSemi(cRad + half);
-          return `<path d="${sectorPath(cx, cy, radius, s, e)}" fill="${fill}"></path>`;
-        };
-
-        return `
-          ${mk(160, a2, "var(--w2)")}
-          ${mk(142, a3, "var(--w3)")}
-          ${mk(120, a4, "var(--w4)")}
-        `;
+        // Outer arc sweep = 1, inner arc sweep = 0 to close properly
+        return [
+          `M ${p1o.x.toFixed(2)} ${p1o.y.toFixed(2)}`,
+          `A ${rOuter} ${rOuter} 0 ${largeArc} 1 ${p2o.x.toFixed(2)} ${p2o.y.toFixed(2)}`,
+          `L ${p2i.x.toFixed(2)} ${p2i.y.toFixed(2)}`,
+          `A ${rInner} ${rInner} 0 ${largeArc} 0 ${p1i.x.toFixed(2)} ${p1i.y.toFixed(2)}`,
+          "Z"
+        ].join(" ");
       }
 
       function needleLineSVG(value, r1, r2, stroke, strokeWidth, opacity=1){
@@ -760,6 +737,58 @@
         const p1 = polarPoint(cx, cy, r1, rad);
         const p2 = polarPoint(cx, cy, r2, rad);
         return `<line x1="${p1.x.toFixed(2)}" y1="${p1.y.toFixed(2)}" x2="${p2.x.toFixed(2)}" y2="${p2.y.toFixed(2)}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" opacity="${opacity}"></line>`;
+      }
+
+      // *** NUEVO: ventana 90° + franjas tipo pie chart (donut) ***
+      function wedgesSVG(center){
+        const cx=200, cy=200;
+        const cVal = clamp(center,0,100);
+
+        const radPerVal = Math.PI / 100; // semicircunferencia = π rad
+        const cRad = valueToRad(cVal);
+
+        const windowHalfRad = WINDOW_HALF_VAL * radPerVal; // 25 vals => π/4
+
+        // Ventana total (quarter of semicircle) around center
+        const wStart = clamp(cRad - windowHalfRad, 0, Math.PI);
+        const wEnd   = clamp(cRad + windowHalfRad, 0, Math.PI);
+
+        // Helper to clip any band to window
+        const band = (halfVal) => {
+          const halfRad = clamp(halfVal, 0, WINDOW_HALF_VAL) * radPerVal;
+          const s = clamp(cRad - halfRad, wStart, wEnd);
+          const e = clamp(cRad + halfRad, wStart, wEnd);
+          return { s, e };
+        };
+
+        const b2 = band(WEDGES.w2);
+        const b3 = band(WEDGES.w3);
+        const b4 = band(WEDGES.w4);
+
+        // Donut thickness (so it looks like the physical scoring window)
+        const rOuter = 160;
+        const rInner = 95;
+
+        // Slight outline for the whole window
+        const windowOutline = donutSectorPath(cx, cy, rOuter, rInner, wStart, wEnd);
+
+        // Draw nested “pie slices” inside the window
+        const p2 = donutSectorPath(cx, cy, rOuter, rInner, b2.s, b2.e);
+        const p3 = donutSectorPath(cx, cy, rOuter, rInner, b3.s, b3.e);
+        const p4 = donutSectorPath(cx, cy, rOuter, rInner, b4.s, b4.e);
+
+        // Also draw thin separators at the window edges
+        const edge1 = needleLineSVG( clamp(cVal - WINDOW_HALF_VAL, 0, 100), 200, 70, "rgba(255,255,255,.18)", 2, 1);
+        const edge2 = needleLineSVG( clamp(cVal + WINDOW_HALF_VAL, 0, 100), 200, 70, "rgba(255,255,255,.18)", 2, 1);
+
+        return `
+          <path d="${windowOutline}" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.14)" stroke-width="1"></path>
+          <path d="${p2}" fill="var(--w2)"></path>
+          <path d="${p3}" fill="var(--w3)"></path>
+          <path d="${p4}" fill="var(--w4)"></path>
+          ${edge1}
+          ${edge2}
+        `;
       }
 
       function dialHTML({ left, right, showTarget, target, showGuess, guess }){
@@ -796,7 +825,7 @@
                   }).join("")
                 }
 
-                <!-- Wedges (only when target visible) -->
+                <!-- Scoring window + pie slices (only when target visible) -->
                 ${showTarget ? wedgesSVG(t) : ""}
 
                 <!-- Target needle -->
@@ -1109,7 +1138,6 @@
             }
 
             store.psychicIndex = 1 - store.psychicIndex;
-
             resetRound();
             store.state = STATES.ROUND;
             showToast("Roles cambiados. Nueva ronda.");
