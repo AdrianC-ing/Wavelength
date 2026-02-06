@@ -1,0 +1,1018 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Wavelength (Web)</title>
+  <style>
+    :root{
+      --bg: #0b0f17;
+      --panel: rgba(255,255,255,.06);
+      --panel-2: rgba(255,255,255,.09);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.68);
+      --muted2: rgba(255,255,255,.55);
+      --line: rgba(255,255,255,.12);
+      --shadow: 0 12px 34px rgba(0,0,0,.38);
+      --shadow2: 0 18px 52px rgba(0,0,0,.45);
+      --radius: 18px;
+      --radius2: 24px;
+      --focus: 2px solid rgba(120,200,255,.9);
+
+      --a: #7dd3fc;
+      --b: #a78bfa;
+      --good: #34d399;
+      --warn: #fbbf24;
+      --bad: #fb7185;
+
+      --dialW: 360px;
+      --dialH: 210px;
+      --tick: rgba(255,255,255,.22);
+
+      --anim: 180ms cubic-bezier(.2,.8,.2,1);
+    }
+
+    @media (prefers-color-scheme: light){
+      :root{
+        --bg: #f6f7fb;
+        --panel: rgba(0,0,0,.05);
+        --panel-2: rgba(0,0,0,.08);
+        --text: rgba(0,0,0,.88);
+        --muted: rgba(0,0,0,.62);
+        --muted2: rgba(0,0,0,.50);
+        --line: rgba(0,0,0,.12);
+        --shadow: 0 10px 26px rgba(0,0,0,.12);
+        --shadow2: 0 16px 44px rgba(0,0,0,.18);
+        --tick: rgba(0,0,0,.18);
+      }
+    }
+
+    *{ box-sizing: border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 20% -10%, rgba(125,211,252,.25), transparent 60%),
+                  radial-gradient(900px 650px at 90% 0%, rgba(167,139,250,.20), transparent 55%),
+                  radial-gradient(700px 500px at 50% 110%, rgba(52,211,153,.14), transparent 65%),
+                  var(--bg);
+      color: var(--text);
+      line-height: 1.35;
+    }
+
+    a{ color: inherit; }
+    .wrap{
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 18px 14px 32px;
+    }
+
+    header{
+      display:flex;
+      flex-wrap: wrap;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      min-width: 220px;
+    }
+    .logo{
+      width: 40px; height: 40px;
+      border-radius: 14px;
+      background:
+        radial-gradient(14px 14px at 30% 30%, rgba(255,255,255,.55), transparent 60%),
+        radial-gradient(22px 22px at 70% 30%, rgba(125,211,252,.55), transparent 60%),
+        radial-gradient(26px 26px at 45% 75%, rgba(167,139,250,.48), transparent 62%),
+        rgba(255,255,255,.06);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--line);
+    }
+    .brand h1{
+      margin:0;
+      font-size: 16px;
+      letter-spacing:.2px;
+      font-weight: 700;
+    }
+    .brand p{
+      margin:0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .top-actions{
+      display:flex;
+      align-items:center;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content:flex-end;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.2fr .8fr;
+      gap: 14px;
+      align-items: start;
+    }
+    @media (max-width: 920px){
+      .grid{ grid-template-columns: 1fr; }
+    }
+
+    .card{
+      background: linear-gradient(180deg, var(--panel), transparent 120%);
+      border: 1px solid var(--line);
+      border-radius: var(--radius2);
+      box-shadow: var(--shadow);
+      overflow: clip;
+    }
+    .card .hd{
+      padding: 14px 14px 10px;
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), transparent);
+    }
+    .card .hd .title{
+      display:flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .card .hd .title b{
+      font-size: 14px;
+      letter-spacing:.2px;
+    }
+    .card .hd .title span{
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .card .bd{ padding: 14px; }
+
+    .row{ display:flex; gap: 10px; flex-wrap: wrap; align-items:center; }
+    .col{ display:flex; flex-direction: column; gap: 8px; }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+      user-select: none;
+      white-space: nowrap;
+    }
+    .pill strong{ color: var(--text); font-weight: 700; }
+
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      font-size: 12px;
+      color: var(--muted);
+      user-select:none;
+    }
+    .dot{ width:10px; height:10px; border-radius: 50%; background: var(--a); box-shadow: 0 0 0 2px rgba(0,0,0,.15) inset;}
+    .dot.b{ background: var(--b); }
+
+    .btn{
+      appearance:none;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: .15px;
+      cursor: pointer;
+      transition: transform var(--anim), background var(--anim), border-color var(--anim), box-shadow var(--anim);
+      box-shadow: 0 10px 22px rgba(0,0,0,.18);
+    }
+    .btn:hover{ background: rgba(255,255,255,.10); transform: translateY(-1px); }
+    .btn:active{ transform: translateY(0px); }
+    .btn:focus-visible{ outline: var(--focus); outline-offset: 2px; }
+    .btn.primary{
+      border-color: rgba(125,211,252,.55);
+      background: linear-gradient(180deg, rgba(125,211,252,.20), rgba(255,255,255,.06));
+    }
+    .btn.danger{
+      border-color: rgba(251,113,133,.55);
+      background: linear-gradient(180deg, rgba(251,113,133,.18), rgba(255,255,255,.06));
+    }
+    .btn.ghost{
+      background: transparent;
+      box-shadow: none;
+    }
+    .btn.small{ padding: 8px 10px; border-radius: 12px; font-size: 12px; }
+
+    .toggle{
+      display:inline-flex;
+      align-items:center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .toggle input{ width: 16px; height: 16px; accent-color: #7dd3fc; }
+    .toggle input:focus-visible{ outline: var(--focus); outline-offset: 2px; }
+
+    .input, select, textarea{
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 13px;
+      outline: none;
+      transition: border-color var(--anim), background var(--anim);
+    }
+    textarea{ resize: vertical; min-height: 72px; }
+    .input:focus, select:focus, textarea:focus{
+      border-color: rgba(125,211,252,.55);
+      background: rgba(255,255,255,.07);
+    }
+    label{
+      font-size: 12px;
+      color: var(--muted);
+      display:block;
+      margin-bottom: 6px;
+    }
+
+    .phase{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .phase .big{
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: .2px;
+      margin: 0;
+    }
+    .phase .sub{
+      margin: 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .scoreboard{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .teamBox{
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      padding: 12px;
+      display:flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+    }
+    .teamBox .top{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .teamBox .name{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .teamBox .name b{
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .teamBox .score{
+      font-size: 22px;
+      font-weight: 900;
+      letter-spacing: .2px;
+    }
+    .teamBox .meta{
+      font-size: 12px;
+      color: var(--muted);
+      display:flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .hr{
+      height:1px;
+      background: var(--line);
+      margin: 10px 0;
+    }
+
+    /* Dial */
+    .dialWrap{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      align-items: center;
+      justify-items: center;
+    }
+    .dial{
+      width: min(100%, var(--dialW));
+      aspect-ratio: 360 / 210;
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      position: relative;
+      overflow: clip;
+      box-shadow: var(--shadow2);
+    }
+    .dial::before{
+      content:"";
+      position:absolute;
+      inset: 0;
+      background:
+        radial-gradient(600px 300px at 50% 110%, rgba(255,255,255,.08), transparent 55%),
+        radial-gradient(380px 220px at 10% 0%, rgba(125,211,252,.10), transparent 60%),
+        radial-gradient(420px 260px at 90% 0%, rgba(167,139,250,.09), transparent 60%);
+      pointer-events:none;
+    }
+
+    .ticks{
+      position:absolute;
+      left: 8%;
+      right: 8%;
+      top: 18%;
+      bottom: 16%;
+      border-radius: 18px;
+      pointer-events:none;
+    }
+    .ticks::before{
+      content:"";
+      position:absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(
+          90deg,
+          transparent 0px,
+          transparent 10px,
+          var(--tick) 10px,
+          var(--tick) 11px,
+          transparent 11px,
+          transparent 20px
+        );
+      mask-image: radial-gradient(60% 85% at 50% 100%, rgba(0,0,0,1), rgba(0,0,0,.18) 55%, transparent 78%);
+      opacity:.55;
+    }
+
+    .arcLabel{
+      position:absolute;
+      left: 12%;
+      right: 12%;
+      bottom: 10px;
+      display:flex;
+      align-items:flex-end;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--muted);
+      gap: 10px;
+      pointer-events:none;
+    }
+    .arcLabel .side{
+      max-width: 46%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .arcLabel .mid{
+      font-weight: 800;
+      color: var(--muted2);
+      opacity:.85;
+    }
+
+    .needle{
+      position:absolute;
+      left: 10%;
+      right: 10%;
+      bottom: 18%;
+      height: 0;
+      pointer-events:none;
+    }
+    .needle .bar{
+      position:absolute;
+      left: 50%;
+      bottom: 0;
+      width: 4px;
+      height: 120px;
+      border-radius: 999px;
+      transform-origin: bottom center;
+      transform: translateX(-50%) rotate(0deg);
+      background: linear-gradient(180deg, rgba(255,255,255,.85), rgba(255,255,255,.10));
+      box-shadow: 0 10px 22px rgba(0,0,0,.38);
+      transition: transform 240ms cubic-bezier(.2,.8,.2,1);
+    }
+    .needle .cap{
+      position:absolute;
+      left: 50%;
+      bottom: -6px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      transform: translateX(-50%);
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.10);
+      box-shadow: inset 0 0 0 2px rgba(0,0,0,.12), 0 10px 22px rgba(0,0,0,.30);
+    }
+
+    /* Secret wedges (psychic/reveal only) */
+    .wedgeLayer{
+      position:absolute;
+      left: 10%;
+      right: 10%;
+      bottom: 18%;
+      height: 0;
+      pointer-events:none;
+    }
+    .wedge{
+      position:absolute;
+      left: 50%;
+      bottom: 0;
+      width: 0; height: 0;
+      transform-origin: bottom center;
+      transform: translateX(-50%) rotate(0deg);
+      opacity: .9;
+      filter: drop-shadow(0 8px 14px rgba(0,0,0,.25));
+    }
+    .wedge.w2{ border-left: 110px solid transparent; border-right: 110px solid transparent; border-top: 110px solid rgba(251,191,36,.16); }
+    .wedge.w3{ border-left: 82px solid transparent; border-right: 82px solid transparent; border-top: 82px solid rgba(52,211,153,.18); }
+    .wedge.w4{ border-left: 46px solid transparent; border-right: 46px solid transparent; border-top: 46px solid rgba(125,211,252,.22); }
+
+    .legend{
+      display:flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items:center;
+      justify-content: center;
+    }
+    .legend .lg{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .sw{ width: 12px; height: 12px; border-radius: 4px; display:inline-block; }
+    .sw.w2{ background: rgba(251,191,36,.30); }
+    .sw.w3{ background: rgba(52,211,153,.30); }
+    .sw.w4{ background: rgba(125,211,252,.34); }
+
+    .sliderRow{
+      width: min(100%, 520px);
+      display:flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 0 auto;
+    }
+    input[type="range"]{
+      width: 100%;
+      accent-color: #7dd3fc;
+    }
+    .numRow{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .numRow b{ color: var(--text); }
+
+    .notice{
+      border-radius: 18px;
+      border: 1px dashed rgba(125,211,252,.40);
+      background: rgba(125,211,252,.08);
+      padding: 10px 12px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .kbd{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+    }
+
+    .history{
+      display:flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .hitem{
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      padding: 10px 12px;
+      display:flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .hitem .top{
+      display:flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: baseline;
+    }
+    .hitem .top b{ font-size: 12px; }
+    .hitem .top span{ font-size: 12px; color: var(--muted); }
+    .hitem .meta{
+      display:flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Modal */
+    .modalBackdrop{
+      position: fixed;
+      inset:0;
+      background: rgba(0,0,0,.55);
+      display:none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      z-index: 60;
+    }
+    .modalBackdrop.show{ display:flex; }
+    .modal{
+      width: min(820px, 100%);
+      max-height: min(86vh, 720px);
+      overflow: auto;
+      border-radius: 22px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+      box-shadow: var(--shadow2);
+    }
+    .modal .mhd{
+      padding: 14px 14px 10px;
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,.20), transparent);
+      backdrop-filter: blur(10px);
+    }
+    @media (prefers-color-scheme: light){
+      .modal .mhd{
+        background: linear-gradient(180deg, rgba(255,255,255,.70), rgba(255,255,255,.24));
+      }
+    }
+    .modal .mhd b{ font-size: 14px; }
+    .modal .mbd{ padding: 14px; }
+    .modal h3{ margin: 10px 0 6px; font-size: 13px; }
+    .modal p, .modal li{ color: var(--muted); font-size: 12.5px; }
+    .modal ul{ margin: 8px 0 0 18px; padding:0; }
+    .modal code{ font-size: 11.5px; }
+
+    /* Toast */
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      max-width: min(760px, calc(100% - 24px));
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(0,0,0,.50);
+      color: rgba(255,255,255,.90);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow2);
+      display:none;
+      z-index: 80;
+      font-size: 12.5px;
+    }
+    @media (prefers-color-scheme: light){
+      .toast{
+        background: rgba(255,255,255,.80);
+        color: rgba(0,0,0,.88);
+      }
+    }
+    .toast.show{ display:block; animation: popIn 220ms cubic-bezier(.2,.8,.2,1); }
+    @keyframes popIn{
+      from{ transform: translateX(-50%) translateY(8px); opacity: 0; }
+      to{ transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
+
+    /* Small helpers */
+    .muted{ color: var(--muted); }
+    .right{ margin-left:auto; }
+    .hide{ display:none !important; }
+    .center{ text-align:center; }
+    .spaced{ margin-top: 10px; }
+    .dangerText{ color: var(--bad); }
+    .goodText{ color: var(--good); }
+    .warnText{ color: var(--warn); }
+
+    /* Focus improvements */
+    :focus-visible{
+      outline: var(--focus);
+      outline-offset: 2px;
+      border-radius: 10px;
+    }
+
+    /* Fullscreen hint button style */
+    .fsHint{
+      display:flex;
+      gap: 8px;
+      align-items:center;
+      flex-wrap: wrap;
+    }
+
+    /* Ensure button rows don't overflow */
+    .row > *{ flex: 0 0 auto; }
+    .row .grow{ flex: 1 1 auto; min-width: 200px; }
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion: reduce){
+      *{ transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap" role="application" aria-label="Juego Wavelength en web">
+    <header>
+      <div class="brand" aria-label="Cabecera">
+        <div class="logo" aria-hidden="true"></div>
+        <div>
+          <h1>Wavelength</h1>
+          <p>Party game — modo móvil “pasar dispositivo”.</p>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button class="btn ghost small" id="btnInstructions" aria-haspopup="dialog" aria-controls="modalInstructions">Instrucciones</button>
+        <label class="toggle" title="Activa el temporizador por fase">
+          <input type="checkbox" id="toggleTimer" />
+          <span>Temporizador</span>
+        </label>
+        <label class="toggle" title="Guardar partida automáticamente en este dispositivo">
+          <input type="checkbox" id="toggleAutosave" />
+          <span>Autosave</span>
+        </label>
+        <button class="btn small" id="btnFullscreen" title="Pantalla completa (si el navegador lo permite)">Pantalla completa</button>
+        <button class="btn danger small" id="btnReset">Reset</button>
+      </div>
+    </header>
+
+    <main class="grid" id="app">
+      <!-- Left: Main gameplay -->
+      <section class="card" aria-label="Panel principal">
+        <div class="hd">
+          <div class="title">
+            <b id="phaseTitle">Configuración</b>
+            <span id="phaseSubtitle">Elige modo y empieza una partida.</span>
+          </div>
+          <div class="row" aria-label="Controles rápidos">
+            <span class="pill" id="pillMode" title="Modo actual"><strong>Modo:</strong> —</span>
+            <span class="pill" id="pillActive" title="Equipo activo"><strong>Turno:</strong> —</span>
+            <span class="pill" id="pillTimer" title="Tiempo restante"><strong>Tiempo:</strong> —</span>
+          </div>
+        </div>
+
+        <div class="bd" id="mainArea">
+          <!-- Content changes by state -->
+        </div>
+      </section>
+
+      <!-- Right: Sidebar -->
+      <aside class="card" aria-label="Panel lateral">
+        <div class="hd">
+          <div class="title">
+            <b>Marcador</b>
+            <span id="scoreSubtitle">Objetivo: 10 puntos</span>
+          </div>
+          <div class="row">
+            <button class="btn small" id="btnPassDevice" title="Oculta y muestra pantallas según fase">Pasar dispositivo</button>
+          </div>
+        </div>
+        <div class="bd">
+          <div class="scoreboard" aria-label="Marcador por equipos">
+            <div class="teamBox" id="teamABox">
+              <div class="top">
+                <div class="name">
+                  <span class="dot" aria-hidden="true"></span>
+                  <b id="teamAName">Equipo A</b>
+                </div>
+                <div class="score" id="teamAScore">0</div>
+              </div>
+              <div class="meta">
+                <span>Psíquico: <b id="teamAPsychic">1</b></span>
+                <button class="btn small ghost" id="btnNextPsychicA" aria-label="Siguiente psíquico del equipo A">Siguiente Psíquico</button>
+              </div>
+            </div>
+
+            <div class="teamBox" id="teamBBox">
+              <div class="top">
+                <div class="name">
+                  <span class="dot b" aria-hidden="true"></span>
+                  <b id="teamBName">Equipo B</b>
+                </div>
+                <div class="score" id="teamBScore">1</div>
+              </div>
+              <div class="meta">
+                <span>Psíquico: <b id="teamBPsychic">1</b></span>
+                <button class="btn small ghost" id="btnNextPsychicB" aria-label="Siguiente psíquico del equipo B">Siguiente Psíquico</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="col" aria-label="Opciones de partida">
+            <div class="row">
+              <span class="chip" title="Reglas del target"><span class="sw w4"></span>4 pts ±5</span>
+              <span class="chip" title="Reglas del target"><span class="sw w3"></span>3 pts ±12</span>
+              <span class="chip" title="Reglas del target"><span class="sw w2"></span>2 pts ±20</span>
+            </div>
+            <div class="notice" id="noticeLeak">
+              Consejo: en fases “Equipo” y “Rival” <b>no</b> se renderiza el objetivo secreto.
+            </div>
+          </div>
+
+          <div class="hr"></div>
+
+          <div class="col" aria-label="Historial de rondas">
+            <div class="row" style="justify-content:space-between; align-items:baseline;">
+              <b style="font-size:13px;">Historial (últimas 5)</b>
+              <span class="muted" style="font-size:12px;" id="historyHint">—</span>
+            </div>
+            <div class="history" id="historyList"></div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Instructions Modal -->
+  <div class="modalBackdrop" id="modalInstructions" role="dialog" aria-modal="true" aria-labelledby="modalInstructionsTitle">
+    <div class="modal">
+      <div class="mhd">
+        <b id="modalInstructionsTitle">Instrucciones (resumen)</b>
+        <button class="btn small" id="btnCloseInstructions" aria-label="Cerrar instrucciones">Cerrar</button>
+      </div>
+      <div class="mbd">
+        <h3>Objetivo</h3>
+        <p>Un Psíquico ve un punto secreto (0–100) en un espectro. Da una pista <b>de una sola idea</b>. Su equipo ajusta el dial para acertar la zona. El rival apuesta si el centro está a la izquierda o derecha del dial.</p>
+
+        <h3>Fases (competitivo)</h3>
+        <ul>
+          <li><b>Elegir carta</b>: se muestran ambos extremos.</li>
+          <li><b>Psíquico</b>: ve el objetivo secreto y da la pista. Luego pulsa “Ocultar objetivo / Pasar al equipo”.</li>
+          <li><b>Equipo</b>: decide la posición (0–100) y la bloquea.</li>
+          <li><b>Rival</b>: apuesta LEFT/RIGHT sobre si el centro (4 pts) está a la izquierda o derecha de la posición del equipo.</li>
+          <li><b>Revelación</b>: se ven objetivo y dial. Se asignan puntos. Si cae en borde exacto, se da el mejor.</li>
+        </ul>
+
+        <h3>Puntuación</h3>
+        <ul>
+          <li>Centro: <b>4 pts</b> si la posición cae en ±5 del centro.</li>
+          <li>Luego <b>3 pts</b> si cae en ±12 del centro (pero fuera de ±5).</li>
+          <li>Luego <b>2 pts</b> si cae en ±20 del centro (pero fuera de ±12).</li>
+          <li>Si cae fuera: <b>0 pts</b>.</li>
+          <li>Rival: +1 si acierta LEFT/RIGHT, <b>excepto</b> si el equipo logra 4 pts.</li>
+        </ul>
+
+        <h3>Catch-up</h3>
+        <p>Si un equipo logra <b>4 puntos</b> y aun así sigue perdiendo tras sumar, juega <b>otra ronda inmediata</b> (mismo equipo, psíquico siguiente).</p>
+
+        <h3>Reglas de pista (anti-trampas)</h3>
+        <ul>
+          <li>Una sola idea (no dos pistas).</li>
+          <li>No uses números/porcentajes para indicar posición.</li>
+          <li>No uses las palabras de la carta ni sinónimos obvios.</li>
+        </ul>
+
+        <h3>Modo cooperativo</h3>
+        <ul>
+          <li>Jugáis todos juntos. 7 cartas iniciales.</li>
+          <li>No hay LEFT/RIGHT.</li>
+          <li>El centro vale <b>3</b>. Si acertáis centro, ganáis una <b>carta bonus</b> (una ronda extra).</li>
+        </ul>
+
+        <div class="notice spaced">
+          Tip: En móvil, usa <b>Pasar dispositivo</b> para recordar a quién le toca ver la pantalla.
+          Atajos: <span class="kbd">Esc</span> cierra modales.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cards Editor Modal -->
+  <div class="modalBackdrop" id="modalEditor" role="dialog" aria-modal="true" aria-labelledby="modalEditorTitle">
+    <div class="modal">
+      <div class="mhd">
+        <b id="modalEditorTitle">Editor de cartas (local)</b>
+        <button class="btn small" id="btnCloseEditor" aria-label="Cerrar editor">Cerrar</button>
+      </div>
+      <div class="mbd">
+        <div class="row">
+          <div class="grow">
+            <label for="newLeft">Extremo izquierdo</label>
+            <input class="input" id="newLeft" placeholder="Ej: Aburrido" />
+          </div>
+          <div class="grow">
+            <label for="newRight">Extremo derecho</label>
+            <input class="input" id="newRight" placeholder="Ej: Emocionante" />
+          </div>
+        </div>
+        <div class="row spaced">
+          <button class="btn primary" id="btnAddCard">Añadir carta</button>
+          <button class="btn" id="btnExportCards">Exportar (JSON)</button>
+          <button class="btn" id="btnImportCards">Importar (JSON)</button>
+          <button class="btn danger" id="btnClearCustomCards">Borrar cartas personalizadas</button>
+        </div>
+
+        <div class="hr"></div>
+
+        <div class="row" style="justify-content:space-between; align-items:baseline;">
+          <b style="font-size:13px;">Cartas disponibles</b>
+          <span class="muted" style="font-size:12px;" id="cardsCount">—</span>
+        </div>
+        <div class="notice spaced">
+          Las cartas personalizadas se guardan en este dispositivo (localStorage). Importar/Exportar te permite moverlas.
+        </div>
+
+        <div class="spaced" id="cardsList" aria-label="Listado de cartas"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      /** -----------------------------
+       *  Utilities
+       *  ----------------------------- */
+      const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+      const now = () => performance.now();
+
+      function safeJsonParse(str, fallback){
+        try { return JSON.parse(str); } catch { return fallback; }
+      }
+
+      function debounce(fn, ms){
+        let t = null;
+        return (...args) => {
+          clearTimeout(t);
+          t = setTimeout(() => fn(...args), ms);
+        };
+      }
+
+      function uid(){
+        return Math.random().toString(36).slice(2,10) + "-" + Date.now().toString(36);
+      }
+
+      /** Map 0..100 to -60..60 degrees for dial needle */
+      function valueToDeg(v){
+        const x = clamp(v, 0, 100) / 100; // 0..1
+        return -60 + x * 120;
+      }
+
+      function fmtCard(card){
+        return `${card.left} — ${card.right}`;
+      }
+
+      /** -----------------------------
+       *  Cards
+       *  ----------------------------- */
+      const BASE_CARDS = [
+        { left:"Frío", right:"Caliente" },
+        { left:"Aburrido", right:"Emocionante" },
+        { left:"Inofensivo", right:"Peligroso" },
+        { left:"Común", right:"Raro" },
+        { left:"Débil", right:"Fuerte" },
+        { left:"Simple", right:"Complejo" },
+        { left:"Tradicional", right:"Innovador" },
+        { left:"Caro", right:"Barato" },
+        { left:"Serio", right:"Cómico" },
+        { left:"Ordenado", right:"Caótico" },
+        { left:"Egoísta", right:"Altruista" },
+        { left:"Lento", right:"Rápido" },
+        { left:"Seguro", right:"Arriesgado" },
+        { left:"Formal", right:"Informal" },
+        { left:"Amigable", right:"Hostil" },
+        { left:"Sutil", right:"Exagerado" },
+        { left:"Fácil", right:"Difícil" },
+        { left:"De mal gusto", right:"Elegante" },
+        { left:"Relajante", right:"Estresante" },
+        { left:"Predecible", right:"Impredecible" },
+        { left:"Infantil", right:"Adulto" },
+        { left:"Moderno", right:"Retro" },
+        { left:"Realista", right:"Fantástico" },
+        { left:"Optimista", right:"Pesimista" },
+        { left:"Honesto", right:"Engañoso" },
+        { left:"Conservador", right:"Rebelde" },
+        { left:"Silencioso", right:"Ruidoso" },
+        { left:"Íntimo", right:"Público" },
+        { left:"Casual", right:"Solemne" },
+        { left:"Suave", right:"Brusco" },
+        { left:"Delicado", right:"Robusto" },
+        { left:"Abstracto", right:"Concreto" },
+        { left:"Limpio", right:"Sucio" },
+        { left:"Natural", right:"Artificial" },
+        { left:"Agradable", right:"Desagradable" },
+        { left:"Racional", right:"Emocional" },
+        { left:"Amable", right:"Cruel" },
+        { left:"Flexible", right:"Rígido" },
+        { left:"Minimalista", right:"Recargado" },
+        { left:"Local", right:"Global" },
+        { left:"Clásico", right:"Vanguardista" },
+        { left:"Tierno", right:"Intimidante" },
+        { left:"Práctico", right:"Impráctico" },
+        { left:"Popular", right:"De nicho" },
+        { left:"Cotidiano", right:"Épico" },
+        { left:"Atemporal", right:"De moda" },
+        { left:"Aire libre", right:"Interior" },
+        { left:"Individual", right:"En equipo" },
+        { left:"Aventurero", right:"Cauteloso" },
+        { left:"Directo", right:"Ambiguo" },
+        { left:"Atractivo", right:"Repulsivo" },
+        { left:"Futurista", right:"Antiguo" },
+        { left:"Eficiente", right:"Ineficiente" },
+        { left:"Duro", right:"Blando" },
+        { left:"Sincero", right:"Diplomático" },
+        { left:"Exclusivo", right:"Inclusivo" },
+        { left:"Intenso", right:"Ligero" },
+        { left:"Frágil", right:"Resistente" },
+        { left:"Estable", right:"Volátil" },
+        { left:"Metódico", right:"Impulsivo" },
+        { left:"Sano", right:"Indulgente" },
+        { left:"Lógico", right:"Intuitivo" },
+        { left:"Pulido", right:"Desaliñado" },
+        { left:"Cercano", right:"Distante" },
+        { left:"Profesional", right:"Amateur" },
+        { left:"Humilde", right:"Presumido" },
+        { left:"Táctico", right:"Estratégico" },
+        { left:"Confiable", right:"Inestable" },
+        { left:"Científico", right:"Místico" },
+        { left:"Transparente", right:"Opaco" },
+        { left:"Carismático", right:"Insulso" },
+        { left:"Valiente", right:"Cobarde" },
+        { left:"Caritativo", right:"Interesado" },
+        { left:"Curioso", right:"Indiferente" },
+        { left:"Creativo", right:"Convencional" },
+      ]; // >= 60
+
+      /** Optional "two-sided" simulation: swap left/right */
+      function flipCard(card){
+        return { left: card.right, right: card.left };
+      }
+
+      /** -----------------------------
+       *  Scoring functions (pure)
+       *  ----------------------------- */
+      const WEDGES = {
+        // inclusive ranges around center
+        w4: 5,
+        w3: 12,
+        w2: 20
+      };
+
+      function randomTarget(){
+        // Center from 0..100 inclusive
+        return Math.floor(Math.random() * 101*
