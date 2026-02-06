@@ -1015,4 +1015,2154 @@
 
       function randomTarget(){
         // Center from 0..100 inclusive
-        return Math.floor(Math.random() * 101*
+        return Math.floor(Math.random() * 101);
+      }
+
+      function scoreGuess(targetCenter, guessPosition, mode){
+        // mode: "competitive" => 4/3/2/0
+        // mode: "coop" => center max 3, then 2/1/0 (keeping same wedge radii but scaled)
+        const t = clamp(targetCenter, 0, 100);
+        const g = clamp(guessPosition, 0, 100);
+        const d = Math.abs(g - t);
+
+        if (mode === "coop"){
+          if (d <= WEDGES.w4) return { teamPoints: 3, wedge: "CENTER" };
+          if (d <= WEDGES.w3) return { teamPoints: 2, wedge: "NEAR" };
+          if (d <= WEDGES.w2) return { teamPoints: 1, wedge: "FAR" };
+          return { teamPoints: 0, wedge: "MISS" };
+        } else {
+          if (d <= WEDGES.w4) return { teamPoints: 4, wedge: "CENTER" };
+          if (d <= WEDGES.w3) return { teamPoints: 3, wedge: "NEAR" };
+          if (d <= WEDGES.w2) return { teamPoints: 2, wedge: "FAR" };
+          return { teamPoints: 0, wedge: "MISS" };
+        }
+      }
+
+      function leftRightBet(targetCenter, guessPosition){
+        const t = clamp(targetCenter, 0, 100);
+        const g = clamp(guessPosition, 0, 100);
+        if (t < g) return "LEFT";
+        if (t > g) return "RIGHT";
+        // exact tie: define as neither; betting is inherently ambiguous.
+        // We'll treat as "TIE" and rival cannot score.
+        return "TIE";
+      }
+
+      function applyCatchUpRule(scores, activeTeam, gainedPoints){
+        // scores: {A:number, B:number}; activeTeam: "A"|"B"
+        // catch-up: if active gained 4 and STILL losing after adding gainedPoints
+        if (gainedPoints !== 4) return false;
+        const a = scores.A, b = scores.B;
+        if (activeTeam === "A") return a < b;
+        return b < a;
+      }
+
+      /** -----------------------------
+       *  Self Tests
+       *  ----------------------------- */
+      function runSelfTests(){
+        const fails = [];
+        // Competitive scoring wedge tests
+        {
+          const t = 50;
+          const cases = [
+            {g:50, exp:4},
+            {g:55, exp:4}, // edge
+            {g:56, exp:3},
+            {g:62, exp:3},
+            {g:63, exp:2},
+            {g:70, exp:2},
+            {g:71, exp:0},
+          ];
+          for (const c of cases){
+            const got = scoreGuess(t, c.g, "competitive").teamPoints;
+            if (got !== c.exp) fails.push(`scoreGuess comp t=50 g=${c.g} => ${got} (exp ${c.exp})`);
+          }
+        }
+        // Coop scoring wedge tests
+        {
+          const t = 10;
+          const cases = [
+            {g:10, exp:3},
+            {g:15, exp:3},
+            {g:16, exp:2},
+            {g:22, exp:2},
+            {g:23, exp:1},
+            {g:30, exp:1},
+            {g:31, exp:0},
+          ];
+          for (const c of cases){
+            const got = scoreGuess(t, c.g, "coop").teamPoints;
+            if (got !== c.exp) fails.push(`scoreGuess coop t=10 g=${c.g} => ${got} (exp ${c.exp})`);
+          }
+        }
+        // leftRightBet tests
+        {
+          const t = 40;
+          if (leftRightBet(t, 60) !== "LEFT") fails.push("leftRightBet expected LEFT");
+          if (leftRightBet(t, 20) !== "RIGHT") fails.push("leftRightBet expected RIGHT");
+          if (leftRightBet(t, 40) !== "TIE") fails.push("leftRightBet expected TIE");
+        }
+        // catch-up tests
+        {
+          if (applyCatchUpRule({A:4,B:6}, "A", 4) !== true) fails.push("catch-up should be true (A losing)");
+          if (applyCatchUpRule({A:6,B:4}, "A", 4) !== false) fails.push("catch-up should be false (A not losing)");
+          if (applyCatchUpRule({A:4,B:6}, "A", 3) !== false) fails.push("catch-up should be false (not 4)");
+        }
+
+        return { ok: fails.length === 0, fails };
+      }
+
+      /** -----------------------------
+       *  State Machine
+       *  ----------------------------- */
+      const STATES = Object.freeze({
+        SETUP: "SETUP",
+        PICK_CARD: "PICK_CARD",
+        PSYCHIC_VIEW: "PSYCHIC_VIEW",
+        TEAM_GUESS: "TEAM_GUESS",
+        OPPONENT_BET: "OPPONENT_BET",
+        REVEAL: "REVEAL",
+        GAME_OVER: "GAME_OVER",
+        COOP_PICK_CARD: "COOP_PICK_CARD",
+        COOP_PSYCHIC_VIEW: "COOP_PSYCHIC_VIEW",
+        COOP_TEAM_GUESS: "COOP_TEAM_GUESS",
+        COOP_REVEAL: "COOP_REVEAL",
+        COOP_GAME_OVER: "COOP_GAME_OVER"
+      });
+
+      const STORAGE_KEY = "wavelength_web_v1";
+      const STORAGE_CARDS_KEY = "wavelength_custom_cards_v1";
+
+      class Store {
+        constructor(){
+          this.autosave = false;
+          this.timerEnabled = false;
+          this.timerSec = 0;
+          this.timerEndsAt = 0;
+          this.timerHandle = null;
+
+          this.customCards = this.loadCustomCards();
+          this.baseCards = BASE_CARDS.slice();
+          this.deck = []; // indices into combinedCards
+          this.used = new Set();
+
+          this.state = STATES.SETUP;
+
+          this.mode = "competitive"; // "competitive" | "coop"
+          this.targetScore = 10;
+
+          this.team = {
+            A: { name: "Equipo A", score: 0, psychicIndex: 1 },
+            B: { name: "Equipo B", score: 1, psychicIndex: 1 },
+          };
+
+          this.activeTeam = "A"; // "A" | "B"
+          this.round = 1;
+          this.suddenDeath = false;
+
+          this.current = {
+            id: null,
+            cardIndex: null,
+            cardFlipped: false,
+            clue: "",
+            targetCenter: null, // 0..100
+            guess: 50,
+            lockedGuess: false,
+            opponentBet: null, // "LEFT"|"RIGHT"|null
+            opponentBetResolved: null, // true/false/"TIE"
+            pointsTeam: 0,
+            pointsOpponent: 0,
+            wedge: "MISS",
+            catchUpGranted: false
+          };
+
+          // Coop specifics
+          this.coop = {
+            remaining: 7,
+            bonusEarned: 0,
+            totalScore: 0
+          };
+
+          this.history = []; // last 5
+        }
+
+        combinedCards(){
+          return [...this.baseCards, ...this.customCards];
+        }
+
+        loadCustomCards(){
+          const raw = localStorage.getItem(STORAGE_CARDS_KEY);
+          const arr = safeJsonParse(raw, []);
+          if (!Array.isArray(arr)) return [];
+          return arr
+            .filter(x => x && typeof x.left === "string" && typeof x.right === "string")
+            .map(x => ({ left: x.left.trim(), right: x.right.trim() }))
+            .filter(x => x.left && x.right);
+        }
+
+        saveCustomCards(){
+          localStorage.setItem(STORAGE_CARDS_KEY, JSON.stringify(this.customCards));
+        }
+
+        clearCustomCards(){
+          this.customCards = [];
+          this.saveCustomCards();
+        }
+
+        buildDeck(avoidRepeats){
+          const total = this.combinedCards().length;
+          const arr = Array.from({length: total}, (_,i) => i);
+
+          // Fisher-Yates shuffle
+          for (let i=arr.length-1; i>0; i--){
+            const j = Math.floor(Math.random()*(i+1));
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+          }
+
+          this.deck = arr;
+          if (!avoidRepeats) this.used.clear();
+        }
+
+        drawCard(avoidRepeats){
+          const total = this.combinedCards().length;
+          if (total === 0) return null;
+
+          if (this.deck.length === 0){
+            this.buildDeck(avoidRepeats);
+          }
+
+          // If avoid repeats until exhausted: skip used; refill when exhausted
+          if (avoidRepeats){
+            let guard = 0;
+            while (guard < total){
+              if (this.deck.length === 0){
+                // exhausted: clear used and rebuild
+                this.used.clear();
+                this.buildDeck(true);
+              }
+              const idx = this.deck.pop();
+              if (!this.used.has(idx)){
+                this.used.add(idx);
+                return idx;
+              }
+              guard++;
+            }
+            // fallback
+          }
+          return this.deck.pop() ?? Math.floor(Math.random()*total);
+        }
+
+        resetCurrentRound(){
+          this.current = {
+            id: uid(),
+            cardIndex: null,
+            cardFlipped: false,
+            clue: "",
+            targetCenter: null,
+            guess: 50,
+            lockedGuess: false,
+            opponentBet: null,
+            opponentBetResolved: null,
+            pointsTeam: 0,
+            pointsOpponent: 0,
+            wedge: "MISS",
+            catchUpGranted: false
+          };
+        }
+
+        scoresObj(){
+          return { A: this.team.A.score, B: this.team.B.score };
+        }
+
+        setScores(a,b){
+          this.team.A.score = a;
+          this.team.B.score = b;
+        }
+
+        setState(next){
+          this.state = next;
+        }
+
+        isCompetitive(){
+          return this.mode === "competitive";
+        }
+
+        isCoop(){
+          return this.mode === "coop";
+        }
+
+        otherTeam(t){
+          return t === "A" ? "B" : "A";
+        }
+      }
+
+      /** -----------------------------
+       *  UI / Rendering
+       *  ----------------------------- */
+      const $ = (sel, root=document) => root.querySelector(sel);
+      const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+      const els = {
+        mainArea: $("#mainArea"),
+        phaseTitle: $("#phaseTitle"),
+        phaseSubtitle: $("#phaseSubtitle"),
+        pillMode: $("#pillMode"),
+        pillActive: $("#pillActive"),
+        pillTimer: $("#pillTimer"),
+        scoreSubtitle: $("#scoreSubtitle"),
+        teamAName: $("#teamAName"),
+        teamBName: $("#teamBName"),
+        teamAScore: $("#teamAScore"),
+        teamBScore: $("#teamBScore"),
+        teamAPsychic: $("#teamAPsychic"),
+        teamBPsychic: $("#teamBPsychic"),
+        btnNextPsychicA: $("#btnNextPsychicA"),
+        btnNextPsychicB: $("#btnNextPsychicB"),
+        btnReset: $("#btnReset"),
+        btnInstructions: $("#btnInstructions"),
+        btnCloseInstructions: $("#btnCloseInstructions"),
+        modalInstructions: $("#modalInstructions"),
+        btnPassDevice: $("#btnPassDevice"),
+        toggleAutosave: $("#toggleAutosave"),
+        toggleTimer: $("#toggleTimer"),
+        btnFullscreen: $("#btnFullscreen"),
+        toast: $("#toast"),
+        historyList: $("#historyList"),
+        historyHint: $("#historyHint"),
+
+        modalEditor: $("#modalEditor"),
+        btnCloseEditor: $("#btnCloseEditor"),
+        btnAddCard: $("#btnAddCard"),
+        btnExportCards: $("#btnExportCards"),
+        btnImportCards: $("#btnImportCards"),
+        btnClearCustomCards: $("#btnClearCustomCards"),
+        newLeft: $("#newLeft"),
+        newRight: $("#newRight"),
+        cardsList: $("#cardsList"),
+        cardsCount: $("#cardsCount")
+      };
+
+      function showToast(msg, ms=2200){
+        els.toast.textContent = msg;
+        els.toast.classList.add("show");
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => els.toast.classList.remove("show"), ms);
+      }
+
+      function openModal(modalEl){
+        modalEl.classList.add("show");
+        // Focus first button
+        const focusable = modalEl.querySelector("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])");
+        focusable?.focus();
+      }
+
+      function closeModal(modalEl){
+        modalEl.classList.remove("show");
+      }
+
+      function isModalOpen(){
+        return els.modalInstructions.classList.contains("show") || els.modalEditor.classList.contains("show");
+      }
+
+      function setPhase(title, subtitle){
+        els.phaseTitle.textContent = title;
+        els.phaseSubtitle.textContent = subtitle;
+      }
+
+      function updateHeaderPills(store){
+        const modeLabel = store.isCompetitive() ? "Competitivo" : "Cooperativo";
+        els.pillMode.innerHTML = `<strong>Modo:</strong> ${modeLabel}`;
+
+        if (store.isCompetitive()){
+          const tname = store.team[store.activeTeam].name;
+          els.pillActive.innerHTML = `<strong>Turno:</strong> ${tname}`;
+        } else {
+          els.pillActive.innerHTML = `<strong>Turno:</strong> Todos`;
+        }
+
+        if (store.timerEnabled && store.timerEndsAt > 0){
+          const rem = Math.max(0, Math.ceil((store.timerEndsAt - now())/1000));
+          els.pillTimer.innerHTML = `<strong>Tiempo:</strong> ${rem}s`;
+        } else {
+          els.pillTimer.innerHTML = `<strong>Tiempo:</strong> —`;
+        }
+      }
+
+      function renderScoreboard(store){
+        els.teamAName.textContent = store.team.A.name;
+        els.teamBName.textContent = store.team.B.name;
+        els.teamAScore.textContent = store.team.A.score;
+        els.teamBScore.textContent = store.team.B.score;
+        els.teamAPsychic.textContent = store.team.A.psychicIndex;
+        els.teamBPsychic.textContent = store.team.B.psychicIndex;
+        els.scoreSubtitle.textContent = store.isCompetitive()
+          ? `Objetivo: ${store.targetScore} puntos${store.suddenDeath ? " · Sudden death" : ""}`
+          : `Cartas restantes: ${store.coop.remaining} · Puntuación: ${store.coop.totalScore}`;
+
+        // highlight active team
+        $("#teamABox").style.outline = store.isCompetitive() && store.activeTeam === "A" ? "2px solid rgba(125,211,252,.45)" : "none";
+        $("#teamBBox").style.outline = store.isCompetitive() && store.activeTeam === "B" ? "2px solid rgba(167,139,250,.45)" : "none";
+      }
+
+      function renderHistory(store){
+        const items = store.history.slice(-5).reverse();
+        els.historyList.innerHTML = "";
+        els.historyHint.textContent = items.length ? `${Math.min(5, store.history.length)} entradas` : "Vacío";
+
+        if (!items.length){
+          els.historyList.innerHTML = `<div class="notice">Aún no hay rondas registradas.</div>`;
+          return;
+        }
+
+        for (const h of items){
+          const div = document.createElement("div");
+          div.className = "hitem";
+          const teamLabel = h.mode === "coop" ? "Coop" : (h.team === "A" ? store.team.A.name : store.team.B.name);
+          const oppLabel = h.mode === "competitive" ? (h.team === "A" ? store.team.B.name : store.team.A.name) : "";
+          const lr = h.mode === "competitive"
+            ? ` · LR: ${h.bet ?? "—"} ${h.betResolved === true ? "✓" : h.betResolved === false ? "✗" : h.betResolved === "TIE" ? "∼" : ""}`
+            : "";
+
+          div.innerHTML = `
+            <div class="top">
+              <b>${teamLabel}</b>
+              <span>${h.when}</span>
+            </div>
+            <div class="muted" style="font-size:12px;">${h.card}</div>
+            <div class="meta">
+              <span>Pista: <b style="color:var(--text);">${h.clue || "—"}</b></span>
+              <span>Pos: <b style="color:var(--text);">${h.guess}</b></span>
+              <span>Obj: <b style="color:var(--text);">${h.target}</b></span>
+              <span>Pts: <b style="color:var(--text);">${h.ptsTeam}</b>${h.mode==="competitive" ? ` / +${h.ptsOpp} (${oppLabel})` : ""}</span>
+              <span>${h.wedge}${lr}</span>
+            </div>
+          `;
+          els.historyList.appendChild(div);
+        }
+      }
+
+      function render(store){
+        updateHeaderPills(store);
+        renderScoreboard(store);
+        renderHistory(store);
+
+        const state = store.state;
+        els.mainArea.innerHTML = "";
+
+        if (state === STATES.SETUP){
+          setPhase("Configuración", "Elige modo, nombres y opciones. Luego pulsa Empezar.");
+
+          const tests = runSelfTests();
+          const testBadge = tests.ok
+            ? `<span class="chip"><span class="sw" style="background:rgba(52,211,153,.35)"></span>Self-tests OK</span>`
+            : `<span class="chip"><span class="sw" style="background:rgba(251,113,133,.35)"></span>Self-tests FAIL</span>`;
+
+          els.mainArea.innerHTML = `
+            <div class="col" style="gap:14px;">
+              <div class="row" style="justify-content:space-between;">
+                <div class="col" style="gap:4px;">
+                  <b style="font-size:14px;">Modo</b>
+                  <span class="muted" style="font-size:12px;">Competitivo por equipos o Cooperativo (todos juntos).</span>
+                </div>
+                <div class="row">${testBadge}</div>
+              </div>
+
+              ${!tests.ok ? `<div class="notice"><b class="dangerText">Tests fallidos:</b><br>${tests.fails.map(x => `• ${escapeHtml(x)}`).join("<br>")}</div>` : ""}
+
+              <div class="card" style="box-shadow:none;">
+                <div class="bd">
+                  <div class="row">
+                    <div class="grow">
+                      <label for="selMode">Selecciona modo</label>
+                      <select id="selMode" aria-label="Seleccionar modo">
+                        <option value="competitive">Competitivo (2 equipos)</option>
+                        <option value="coop">Cooperativo</option>
+                      </select>
+                    </div>
+                    <div class="grow">
+                      <label for="inpTarget">Puntuación objetivo (competitivo)</label>
+                      <input id="inpTarget" class="input" inputmode="numeric" pattern="[0-9]*" value="${store.targetScore}" aria-label="Puntuación objetivo" />
+                    </div>
+                  </div>
+
+                  <div class="row spaced">
+                    <div class="grow">
+                      <label for="inpTeamA">Nombre equipo A</label>
+                      <input id="inpTeamA" class="input" value="${escapeAttr(store.team.A.name)}" aria-label="Nombre equipo A" />
+                    </div>
+                    <div class="grow">
+                      <label for="inpTeamB">Nombre equipo B</label>
+                      <input id="inpTeamB" class="input" value="${escapeAttr(store.team.B.name)}" aria-label="Nombre equipo B" />
+                    </div>
+                  </div>
+
+                  <div class="row spaced">
+                    <label class="toggle" title="Evita repetir cartas hasta agotar el set">
+                      <input type="checkbox" id="toggleAvoidRepeat" checked />
+                      <span>Evitar repetidas hasta agotar</span>
+                    </label>
+                    <button class="btn" id="btnOpenEditor">Editor de cartas</button>
+                  </div>
+
+                  <div class="hr"></div>
+
+                  <div class="row" style="justify-content:space-between; align-items:flex-end;">
+                    <div class="col" style="gap:6px;">
+                      <b style="font-size:14px;">Listo</b>
+                      <span class="muted" style="font-size:12px;">Se iniciará una ronda con carta aleatoria. En competitivo: A empieza a 0 y B a 1.</span>
+                    </div>
+                    <button class="btn primary" id="btnStart">Empezar</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="notice">
+                <b>UX móvil:</b> usa “Pasar dispositivo” y el botón “Ocultar objetivo / Pasar al equipo” para evitar miradas accidentales.
+              </div>
+            </div>
+          `;
+
+          const selMode = $("#selMode");
+          const inpTarget = $("#inpTarget");
+          const inpTeamA = $("#inpTeamA");
+          const inpTeamB = $("#inpTeamB");
+          const toggleAvoidRepeat = $("#toggleAvoidRepeat");
+
+          selMode.value = store.mode;
+
+          const start = $("#btnStart");
+          const btnOpenEditor = $("#btnOpenEditor");
+
+          inpTarget.addEventListener("input", () => {
+            const n = parseInt(inpTarget.value.replace(/[^\d]/g,""), 10);
+            if (!Number.isFinite(n)) return;
+            store.targetScore = clamp(n, 3, 99);
+            inpTarget.value = String(store.targetScore);
+          });
+
+          inpTeamA.addEventListener("input", debounce(() => {
+            store.team.A.name = inpTeamA.value.trim() || "Equipo A";
+            renderScoreboard(store);
+            maybeAutosave(store);
+          }, 120));
+
+          inpTeamB.addEventListener("input", debounce(() => {
+            store.team.B.name = inpTeamB.value.trim() || "Equipo B";
+            renderScoreboard(store);
+            maybeAutosave(store);
+          }, 120));
+
+          btnOpenEditor.addEventListener("click", () => {
+            renderEditor(store);
+            openModal(els.modalEditor);
+          });
+
+          start.addEventListener("click", () => {
+            store.mode = selMode.value === "coop" ? "coop" : "competitive";
+
+            // init scores per rules
+            if (store.isCompetitive()){
+              store.team.A.score = 0;
+              store.team.B.score = 1;
+              store.activeTeam = "A";
+              store.round = 1;
+              store.suddenDeath = false;
+              store.history = [];
+              store.resetCurrentRound();
+              store.buildDeck(toggleAvoidRepeat.checked);
+              store._avoidRepeats = !!toggleAvoidRepeat.checked;
+              store.setState(STATES.PICK_CARD);
+              startTimerForState(store);
+            } else {
+              store.coop.remaining = 7;
+              store.coop.bonusEarned = 0;
+              store.coop.totalScore = 0;
+              store.history = [];
+              store.resetCurrentRound();
+              store.buildDeck(toggleAvoidRepeat.checked);
+              store._avoidRepeats = !!toggleAvoidRepeat.checked;
+              store.setState(STATES.COOP_PICK_CARD);
+              startTimerForState(store);
+            }
+
+            maybeAutosave(store);
+            render(store);
+            showToast("Partida iniciada.");
+          });
+
+          return;
+        }
+
+        if (state === STATES.PICK_CARD){
+          setPhase("Elegir carta", `Turno de ${store.team[store.activeTeam].name}. Selecciona carta aleatoria (o cambia cara) y escribe la pista.`);
+          renderPickCardCompetitive(store);
+          return;
+        }
+
+        if (state === STATES.PSYCHIC_VIEW){
+          setPhase("Psíquico", "Solo el Psíquico debe mirar la pantalla. Ve el objetivo secreto y da la pista.");
+          renderPsychicViewCompetitive(store);
+          return;
+        }
+
+        if (state === STATES.TEAM_GUESS){
+          setPhase("Equipo", "El equipo ajusta el dial (0–100) sin ver el objetivo. Luego bloquea la respuesta.");
+          renderTeamGuessCompetitive(store);
+          return;
+        }
+
+        if (state === STATES.OPPONENT_BET){
+          setPhase("Rival", "El equipo rival apuesta LEFT/RIGHT sobre dónde está el centro (4 pts) respecto al dial.");
+          renderOpponentBetCompetitive(store);
+          return;
+        }
+
+        if (state === STATES.REVEAL){
+          setPhase("Revelación", "Se muestra el objetivo y se calculan puntos. Confirma para avanzar.");
+          renderRevealCompetitive(store);
+          return;
+        }
+
+        if (state === STATES.GAME_OVER){
+          setPhase("Fin de partida", "Resultados finales.");
+          renderGameOverCompetitive(store);
+          return;
+        }
+
+        if (state === STATES.COOP_PICK_CARD){
+          setPhase("Elegir carta (Coop)", `Cartas restantes: ${store.coop.remaining}. Selecciona carta y escribe la pista.`);
+          renderPickCardCoop(store);
+          return;
+        }
+
+        if (state === STATES.COOP_PSYCHIC_VIEW){
+          setPhase("Psíquico (Coop)", "Solo el Psíquico debe mirar. Ve el objetivo secreto y da la pista.");
+          renderPsychicViewCoop(store);
+          return;
+        }
+
+        if (state === STATES.COOP_TEAM_GUESS){
+          setPhase("Equipo (Coop)", "Ajustad la posición y bloquead la respuesta (sin ver el objetivo).");
+          renderTeamGuessCoop(store);
+          return;
+        }
+
+        if (state === STATES.COOP_REVEAL){
+          setPhase("Revelación (Coop)", "Se muestra el objetivo y se suman puntos. Avanza a la siguiente carta.");
+          renderRevealCoop(store);
+          return;
+        }
+
+        if (state === STATES.COOP_GAME_OVER){
+          setPhase("Fin (Coop)", "Resumen de la sesión cooperativa.");
+          renderGameOverCoop(store);
+          return;
+        }
+      }
+
+      /** Escape helpers for safe HTML injection in templates */
+      function escapeHtml(s){
+        return String(s).replace(/[&<>"']/g, m => ({
+          "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+        }[m]));
+      }
+      function escapeAttr(s){ return escapeHtml(s).replace(/"/g, "&quot;"); }
+
+      /** -----------------------------
+       *  Render: Competitive
+       *  ----------------------------- */
+      function getCurrentCard(store){
+        const all = store.combinedCards();
+        if (store.current.cardIndex == null) return null;
+        const base = all[store.current.cardIndex];
+        if (!base) return null;
+        return store.current.cardFlipped ? flipCard(base) : base;
+      }
+
+      function renderPickCardCompetitive(store){
+        const card = getCurrentCard(store);
+        const allCount = store.combinedCards().length;
+
+        els.mainArea.innerHTML = `
+          <div class="col" style="gap:14px;">
+            <div class="row" style="justify-content:space-between; align-items:flex-start;">
+              <div class="col" style="gap:6px;">
+                <b style="font-size:14px;">Carta</b>
+                <span class="muted" style="font-size:12px;">Se recomienda “Evitar repetidas” para una experiencia mejor.</span>
+              </div>
+              <div class="row">
+                <button class="btn" id="btnRandCard">Carta aleatoria</button>
+                <button class="btn" id="btnFlipCard" ${!card ? "disabled" : ""} title="Intercambia extremos (cara simulada)">Cambiar cara</button>
+              </div>
+            </div>
+
+            <div class="dialWrap">
+              <div class="dial" aria-label="Dial (sin objetivo en esta fase)">
+                <div class="ticks" aria-hidden="true"></div>
+                <div class="needle" aria-hidden="true">
+                  <div class="bar" style="transform: translateX(-50%) rotate(${valueToDeg(store.current.guess)}deg)"></div>
+                  <div class="cap"></div>
+                </div>
+                <div class="arcLabel" aria-hidden="true">
+                  <div class="side">${card ? escapeHtml(card.left) : "—"}</div>
+                  <div class="mid">0–100</div>
+                  <div class="side" style="text-align:right;">${card ? escapeHtml(card.right) : "—"}</div>
+                </div>
+              </div>
+
+              <div class="notice" style="width:min(100%, 720px);">
+                <b>Regla clave:</b> ahora <b>no</b> se genera ni muestra el objetivo. El objetivo se genera al pasar a “Psíquico”.
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="grow">
+                <label for="inpClue">Pista (opcional, para el historial)</label>
+                <input class="input" id="inpClue" value="${escapeAttr(store.current.clue || "")}" placeholder="Ej: &quot;Tostadora&quot; / &quot;Un domingo de resaca&quot;" />
+              </div>
+            </div>
+
+            <div class="row" style="justify-content:space-between;">
+              <span class="pill"><strong>Cartas totales:</strong> ${allCount}</span>
+              <button class="btn primary" id="btnGoPsychic" ${!card ? "disabled" : ""}>Ir a Psíquico</button>
+            </div>
+          </div>
+        `;
+
+        const btnRand = $("#btnRandCard");
+        const btnFlip = $("#btnFlipCard");
+        const btnGo = $("#btnGoPsychic");
+        const inpClue = $("#inpClue");
+
+        inpClue.addEventListener("input", debounce(() => {
+          store.current.clue = inpClue.value.trim().slice(0, 120);
+          maybeAutosave(store);
+        }, 120));
+
+        btnRand.addEventListener("click", () => {
+          store.resetCurrentRound();
+          store.current.cardIndex = store.drawCard(!!store._avoidRepeats);
+          store.current.cardFlipped = false;
+          store.current.guess = 50;
+          render(store);
+          showToast("Carta seleccionada.");
+          maybeAutosave(store);
+        });
+
+        btnFlip.addEventListener("click", () => {
+          if (store.current.cardIndex == null) return;
+          store.current.cardFlipped = !store.current.cardFlipped;
+          render(store);
+          showToast("Cara cambiada.");
+          maybeAutosave(store);
+        });
+
+        btnGo.addEventListener("click", () => {
+          if (store.current.cardIndex == null) return;
+
+          // Generate secret target only now
+          store.current.targetCenter = randomTarget();
+          store.current.lockedGuess = false;
+          store.current.opponentBet = null;
+          store.current.opponentBetResolved = null;
+
+          store.setState(STATES.PSYCHIC_VIEW);
+          startTimerForState(store);
+          render(store);
+          showToast("Pantalla Psíquico. Solo debe mirar el psíquico.");
+          maybeAutosave(store);
+        });
+
+        // Auto-draw if none yet
+        if (!card){
+          // initial in this state: pick one for convenience
+          store.current.cardIndex = store.drawCard(!!store._avoidRepeats);
+          store.current.cardFlipped = false;
+          maybeAutosave(store);
+          render(store);
+        }
+      }
+
+      function renderPsychicViewCompetitive(store){
+        const card = getCurrentCard(store);
+        const t = store.current.targetCenter ?? 50;
+
+        els.mainArea.innerHTML = `
+          <div class="col" style="gap:14px;">
+            <div class="notice">
+              <b class="warnText">Solo el Psíquico</b>. Da una pista de una sola idea. No uses números ni palabras de la carta.
+              <div class="spaced muted">Cuando estés listo, pulsa <b>Ocultar objetivo / Pasar al equipo</b>.</div>
+            </div>
+
+            <div class="dialWrap">
+              <div class="dial" aria-label="Dial del psíquico (objetivo visible)">
+                <div class="ticks" aria-hidden="true"></div>
+
+                <div class="wedgeLayer" aria-hidden="true">
+                  ${renderWedges(t)}
+                </div>
+
+                <div class="needle" aria-hidden="true">
+                  <div class="bar" style="transform: translateX(-50%) rotate(${valueToDeg(t)}deg)"></div>
+                  <div class="cap"></div>
+                </div>
+
+                <div class="arcLabel" aria-hidden="true">
+                  <div class="side">${card ? escapeHtml(card.left) : "—"}</div>
+                  <div class="mid"><b>Objetivo: ${t}</b></div>
+                  <div class="side" style="text-align:right;">${card ? escapeHtml(card.right) : "—"}</div>
+                </div>
+              </div>
+
+              <div class="legend" aria-label="Leyenda">
+                <span class="lg"><span class="sw w4"></span>4 pts (±${WEDGES.w4})</span>
+                <span class="lg"><span class="sw w3"></span>3 pts (±${WEDGES.w3})</span>
+                <span class="lg"><span class="sw w2"></span>2 pts (±${WEDGES.w2})</span>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="grow">
+                <label for="inpClue2">Pista (opcional, para historial)</label>
+                <input class="input" id="inpClue2" value="${escapeAttr(store.current.clue || "")}" placeholder="Escribe la pista que has dicho (opcional)" />
+              </div>
+            </div>
+
+            <div class="row" style="justify-content:space-between;">
+              <button class="btn" id="btnBackPick">Volver a carta</button>
+              <button class="btn primary" id="btnHidePass">Ocultar objetivo / Pasar al equipo</button>
+            </div>
+          </div>
+        `;
+
+        const inpClue2 = $("#inpClue2");
+        const btnBackPick = $("#btnBackPick");
+        const btnHidePass = $("#btnHidePass");
+
+        inpClue2.addEventListener("input", debounce(() => {
+          store.current.clue = inpClue2.value.trim().slice(0, 120);
+          maybeAutosave(store);
+        }, 120));
+
+        btnBackPick.addEventListener("click", () => {
+          if (!confirm("¿Volver a elegir carta? Se mantiene el turno, pero se regenerará el objetivo al ir de nuevo a Psíquico.")) return;
+          store.current.targetCenter = null;
+          store.setState(STATES.PICK_CARD);
+          startTimerForState(store);
+          render(store);
+          maybeAutosave(store);
+        });
+
+        btnHidePass.addEventListener("click", () => {
+          store.setState(STATES.TEAM_GUESS);
+          startTimerForState(store);
+          render(store);
+          showToast("Ahora decide el equipo (sin objetivo).");
+          maybeAutosave(store);
+        });
+      }
+
+      function renderTeamGuessCompetitive(store){
+        const card = getCurrentCard(store);
+
+        els.mainArea.innerHTML = `
+          <div class="col" style="gap:14px;">
+            <div class="notice">
+              El objetivo está oculto. Ajustad la posición y bloquead. Luego el rival apostará LEFT/RIGHT.
+            </div>
+
+            <div class="dialWrap">
+              <div class="dial" aria-label="Dial del equipo (objetivo oculto)">
+                <div class="ticks" aria-hidden="true"></div>
+
+                <div class="needle" aria-hidden="true">
+                  <div class="bar" id="needleBar" style="transform: translateX(-50%) rotate(${valueToDeg(store.current.guess)}deg)"></div>
+                  <div class="cap"></div>
+                </div>
+
+                <div class="arcLabel" aria-hidden="true">
+                  <div class="side">${card ? escapeHtml(card.left) : "—"}</div>
+                  <div class="mid"><b>Posición</b></div>
+                  <div class="side" style="text-align:right;">${card ? escapeHtml(card.right) : "—"}</div>
+                </div>
+              </div>
+
+              <div class="sliderRow">
+                <label for="rngGuess">Selecciona posición (0–100)</label>
+                <input type="range" id="rngGuess" min="0" max="100" value="${store.current.guess}" aria-label="Selector de posición" />
+                <div class="numRow">
+                  <span>0</span>
+                  <span>Actual: <b id="guessVal">${store.current.guess}</b></span>
+                  <span>100</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <span class="pill"><strong>Carta:</strong> ${card ? escapeHtml(fmtCard(card)) : "—"}</span>
+              <span class="pill"><strong>Pista:</strong> ${escapeHtml(store.current.clue || "—")}</span>
+            </div>
+
+            <div class="row" style="justify-content:space-between;">
+              <button class="btn" id="btnBackPsychic">Volver (Psíquico)</button>
+              <button class="btn primary" id="btnLockGuess">Bloquear respuesta</button>
+            </div>
+          </div>
+        `;
+
+        const rng = $("#rngGuess");
+        const guessVal = $("#guessVal");
+        const needleBar = $("#needleBar");
+        const btnBack = $("#btnBackPsychic");
+        const btnLock = $("#btnLockGuess");
+
+        rng.addEventListener("input", () => {
+          const v = parseInt(rng.value, 10);
+          store.current.guess = clamp(v, 0, 100);
+          guessVal.textContent = store.current.guess;
+          needleBar.style.transform = `translateX(-50%) rotate(${valueToDeg(store.current.guess)}deg)`;
+        });
+
+        btnBack.addEventListener("click", () => {
+          if (!confirm("¿Volver a Psíquico? Asegúrate de que solo el Psíquico mire.")) return;
+          store.setState(STATES.PSYCHIC_VIEW);
+          startTimerForState(store);
+          render(store);
+          maybeAutosave(store);
+        });
+
+        btnLock.addEventListener("click", () => {
+          if (!confirm(`¿Bloquear la posición ${store.current.guess}?`)) return;
+          store.current.lockedGuess = true;
+          store.setState(STATES.OPPONENT_BET);
+          startTimerForState(store);
+          render(store);
+          showToast("Respuesta bloqueada. Ahora apuesta el rival.");
+          maybeAutosave(store);
+        });
+      }
+
+      function renderOpponentBetCompetitive(store){
+        const active = store.activeTeam;
+        const opp = store.otherTeam(active);
+
+        els.mainArea.innerHTML = `
+          <div class="col" style="gap:14px;">
+            <div class="notice">
+              <b>${escapeHtml(store.team[opp].name)}</b>: apostad si el centro (4 pts) está a la <b>izquierda</b> o a la <b>derecha</b> del dial del rival.
+              <div class="spaced muted">No veáis el objetivo.</div>
+            </div>
+
+            <div class="row" style="justify-content:center;">
+              <button class="btn" id="btnBetLeft" aria-label="Apostar izquierda">LEFT</button>
+              <button class="btn" id="btnBetRight" aria-label="Apostar derecha">RIGHT</button>
+            </div>
+
+            <div class="notice">
+              Recordatorio: si el equipo activo logra <b>4 puntos</b>, el rival <b>no</b> gana el +1 aunque acierte.
+            </div>
+
+            <div class="row" style="justify-content:space-between;">
+              <button class="btn" id="btnBackGuess">Volver (Equipo)</button>
+              <button class="btn primary" id="btnConfirmBet" disabled>Confirmar apuesta</button>
+            </div>
+          </div>
+        `;
+
+        const btnLeft = $("#btnBetLeft");
+        const btnRight = $("#btnBetRight");
+        const btnConfirm = $("#btnConfirmBet");
+        const btnBack = $("#btnBackGuess");
+
+        const setSelected = (v) => {
+          store.current.opponentBet = v;
+          btnLeft.classList.toggle("primary", v === "LEFT");
+          btnRight.classList.toggle("primary", v === "RIGHT");
+          btnConfirm.disabled = false;
+          maybeAutosave(store);
+        };
+
+        btnLeft.addEventListener("click", () => setSelected("LEFT"));
+        btnRight.addEventListener("click", () => setSelected("RIGHT"));
+
+        btnBack.addEventListener("click", () => {
+          store.setState(STATES.TEAM_GUESS);
+          startTimerForState(store);
+          render(store);
+          maybeAutosave(store);
+        });
+
+        btnConfirm.addEventListener("click", () => {
+          if (!store.current.opponentBet) return;
+          store.setState(STATES.REVEAL);
+          startTimerForState(store);
+          render(store);
+          showToast("Revelación.");
+          maybeAutosave(store);
+        });
+      }
+
+      function renderRevealCompetitive(store){
+        const card = getCurrentCard(store);
+        const t = store.current.targetCenter ?? 50;
+        const g = store.current.guess ?? 50;
+
+        // Score
+        const s = scoreGuess(t, g, "competitive");
+        store.current.pointsTeam = s.teamPoints;
+        store.current.wedge = s.wedge;
+
+        // Opponent LR
+        const lrTruth = leftRightBet(t, g);
+        let oppPoints = 0;
+        let betResolved = null;
+        if (lrTruth === "TIE"){
+          betResolved = "TIE";
+          oppPoints = 0;
+        } else {
+          betResolved = (store.current.opponentBet === lrTruth);
+          oppPoints = betResolved ? 1 : 0;
+        }
+        // If team got 4, opponent gets 0 regardless
+        if (store.current.pointsTeam === 4) oppPoints = 0;
+
+        store.current.pointsOpponent = oppPoints;
+        store.current.opponentBetResolved = betResolved;
+
+        const active = store.activeTeam;
+        const opp = store.otherTeam(active);
+
+        els.mainArea.innerHTML = `
+          <div class="col" style="gap:14px;">
+            <div class="dialWrap">
+              <div class="dial" aria-label="Revelación (objetivo visible)">
+                <div class="ticks" aria-hidden="true"></div>
+
+                <div class="wedgeLayer" aria-hidden="true">
+                  ${renderWedges(t)}
+                </div>
+
+                <!-- Guess needle -->
+                <div class="needle" aria-hidden="true">
+                  <div class="bar" style="transform: translateX(-50%) rotate(${valueToDeg(g)}deg); background: linear-gradient(180deg, rgba(255,255,255,.90), rgba(255,255,255,.08));"></div>
+                  <div class="cap"></div>
+                </div>
+
+                <!-- Target marker (thin glow) -->
+                <div class="needle" aria-hidden="true">
+                  <div class="bar" style="
+                    transform: translateX(-50%) rotate(${valueToDeg(t)}deg);
+                    width: 2px;
+                    background: linear-gradient(180deg, rgba(125,211,252,.95), rgba(125,211,252,.12));
+                    box-shadow: 0 0 0 1px rgba(125,211,252,.25), 0 14px 28px rgba(0,0,0,.28);
+                  "></div>
+                </div>
+
+                <div class="arcLabel" aria-hidden="true">
+                  <div class="side">${card ? escapeHtml(card.left) : "—"}</div>
+                  <div class="mid"><b>Obj ${t} · Pos ${g}</b></div>
+                  <div class="side" style="text-align:right;">${card ? escapeHtml(card.right) : "—"}</div>
+                </div>
+              </div>
+
+              <div class="legend" aria-label="Leyenda">
+                <span class="lg"><span class="sw w4"></span>4 pts</span>
+                <span class="lg"><span class="sw w3"></span>3 pts</span>
+                <span class="lg"><span class="sw w2"></span>2 pts</span>
+              </div>
+            </div>
+
+            <div class="row">
+              <span class="pill"><strong>${escapeHtml(store.team[active].name)}</strong> +${store.current.pointsTeam} (${store.current.wedge})</span>
+              <span class="pill"><strong>${escapeHtml(store.team[opp].name)}</strong> +${store.current.pointsOpponent} (LR: ${store.current.opponentBet || "—"} ${formatBetResult(store.current.opponentBetResolved)})</span>
+            </div>
+
+            <div class="notice">
+              <b>Carta:</b> ${card ? escapeHtml(fmtCard(card)) : "—"}<br>
+              <b>Pista:</b> ${escapeHtml(store.current.clue || "—")}
+            </div>
+
+            <div class="row" style="justify-content:space-between;">
+              <button class="btn" id="btnBackBet">Volver (Rival)</button>
+              <button class="btn primary" id="btnApply">Aplicar puntos y continuar</button>
+            </div>
+          </div>
+        `;
+
+        const btnBackBet = $("#btnBackBet");
+        const btnApply = $("#btnApply");
+
+        btnBackBet.addEventListener("click", () => {
+          if (!confirm("¿Volver a la fase Rival? El objetivo seguirá siendo el mismo.")) return;
+          store.setState(STATES.OPPONENT_BET);
+          startTimerForState(store);
+          render(store);
+          maybeAutosave(store);
+        });
+
+        btnApply.addEventListener("click", () => {
+          applyRevealCompetitive(store);
+          maybeAutosave(store);
+          render(store);
+        });
+      }
+
+      function formatBetResult(res){
+        if (res === true) return "✓";
+        if (res === false) return "✗";
+        if (res === "TIE") return "∼";
+        return "";
+      }
+
+      function applyRevealCompetitive(store){
+        const active = store.activeTeam;
+        const opp = store.otherTeam(active);
+
+        // Apply points
+        store.team[active].score += store.current.pointsTeam;
+        store.team[opp].score += store.current.pointsOpponent;
+
+        // History entry
+        const card = getCurrentCard(store);
+        store.history.push({
+          mode: "competitive",
+          when: new Date().toLocaleString("es-ES", { hour: "2-digit", minute:"2-digit" }),
+          team: active,
+          card: card ? fmtCard(card) : "—",
+          clue: store.current.clue || "",
+          target: store.current.targetCenter,
+          guess: store.current.guess,
+          ptsTeam: store.current.pointsTeam,
+          ptsOpp: store.current.pointsOpponent,
+          wedge: store.current.wedge,
+          bet: store.current.opponentBet,
+          betResolved: store.current.opponentBetResolved
+        });
+
+        // Win check (>= targetScore)
+        const a = store.team.A.score;
+        const b = store.team.B.score;
+        const target = store.targetScore;
+
+        let someoneReached = (a >= target) || (b >= target);
+
+        // Sudden death logic: If someone reached and tie => sudden death
+        if (someoneReached && a === b){
+          store.suddenDeath = true;
+          showToast("Empate a objetivo. Sudden death.");
+        }
+
+        // If in sudden death and not tie after a round, game over
+        if (store.suddenDeath){
+          if (a !== b && someoneReached){
+            store.setState(STATES.GAME_OVER);
+            stopTimer(store);
+            showToast("Fin (sudden death).");
+            return;
+          }
+        } else if (someoneReached){
+          // normal win condition: if not tied => game over
+          if (a !== b){
+            store.setState(STATES.GAME_OVER);
+            stopTimer(store);
+            showToast("Fin de partida.");
+            return;
+          }
+          // else if tied, suddenDeath already set above
+        }
+
+        // Catch-up rule
+        const scores = store.scoresObj();
+        const catchUp = applyCatchUpRule(scores, active, store.current.pointsTeam);
+
+        // Next round logic
+        if (catchUp){
+          store.current.catchUpGranted = true;
+          // Same active team, rotate psychic, go to pick card
+          store.team[active].psychicIndex += 1;
+          store.resetCurrentRound();
+          store.setState(STATES.PICK_CARD);
+          startTimerForState(store);
+          showToast("Catch-up: mismo equipo juega otra ronda.");
+          return;
+        }
+
+        // Normal alternation
+        store.activeTeam = opp;
+        // rotate psychic for new active team as well? In original, psychic changes within team each time that team is active.
+        // Here: we rotate psychic index when team becomes active (i.e., at start of its round).
+        store.team[store.activeTeam].psychicIndex += 1;
+
+        store.resetCurrentRound();
+        store.setState(STATES.PICK_CARD);
+        startTimerForState(store);
+        store.round += 1;
+        showToast("Siguiente turno.");
+      }
+
+      function renderGameOverCompetitive(store){
+        const a = store.team.A.score;
+        const b = store.team.B.score;
+        const winner = a === b ? "Empate" : (a > b ? store.team.A.name : store.team.B.name);
+
+        els.mainArea.innerHTML = `
+          <div class="col" style="gap:14px;">
+            <div class="notice">
+              <b style="font-size:14px;">Resultado:</b>
+              <div class="spaced">
+                <span class="pill"><strong>${escapeHtml(store.team.A.name)}:</strong> ${a}</span>
+                <span class="pill"><strong>${escapeHtml(store.team.B.name)}:</strong> ${b}</span>
+              </div>
+              <div class="spaced">
+                <b class="${a===b ? "warnText" : "goodText"}">${escapeHtml(winner)}</b>
+                ${store.suddenDeath ? `<span class="muted"> (resuelto en sudden death)</span>` : ""}
+              </div>
+            </div>
+
+            <div class="row" style="justify-content:center;">
+              <button class="btn primary" id="btnNewGame">Nueva partida</button>
+              <button class="btn" id="btnBackToSetup">Volver a configuración</button>
+            </div>
+
+            <div class="notice">
+              Puedes revisar el historial a la derecha. Usa “Reset” para limpiar almacenamiento.
+            </div>
+          </div>
+        `;
+
+        $("#btnNewGame").addEventListener("click", () => {
+          // Keep names; restart quickly
+          store.team.A.score = 0;
+          store.team.B.score = 1;
+          store.activeTeam = "A";
+          store.suddenDeath = false;
+          store.round = 1;
+          store.history = [];
+          store.resetCurrentRound();
+          store.buildDeck(!!store._avoidRepeats);
+          store.setState(STATES.PICK_CARD);
+          startTimerForState(store);
+          render(store);
+          maybeAutosave(store);
+          showToast("Nueva partida (competitivo).");
+        });
+
+        $("#btnBackToSetup").addEventListener("click", () => {
+          store.setState(STATES.SETUP);
+          stopTimer(store);
+          render(store);
+          maybeAutosave(store);
+        });
+      }
+
+      function renderWedges(center){
+        const deg = valueToDeg(center);
+        // Wedges centered on target.
+        // We'll draw 2,3,4 as nested triangles.
+        return `
+          <div class="wedge w2" style="transform: translateX(-50%) rotate(${deg}deg)"></div>
+          <div class="wedge w3" style="transform: translateX(-50%) rotate(${deg}deg)"></div>
+          <div class="wedge w4" style="transform: translateX(-50%) rotate(${deg}deg)"></div>
+        `;
+      }
+
+      /** -----------------------------
+       *  Render: Cooperative
+       *  ----------------------------- */
+      function renderPickCardCoop(store){
+        const card = getCurrentCard(store);
+        const allCount = store.combinedCards().length;
+
+        els.mainArea.innerHTML = `
+          <div class="col" style="gap:14px;">
+            <div class="row" style="justify-content:space-between; align-items:flex-start;">
+              <div class="col" style="gap:6px;">
+                <b style="font-size:14px;">Carta (Coop)</b>
+                <span class="muted" style="font-size:12px;">Objetivo: maximizar puntuación total. Centro vale 3 y da carta bonus.</span>
+              </div>
+              <div class="row">
+                <button class="btn" id="btnRandCard">Carta aleatoria</button>
+                <button class="btn" id="btnFlipCard" ${!card ? "disabled" : ""}>Cambiar cara</button>
+              </div>
+            </div>
+
+            <div class="dialWrap">
+              <div class="dial" aria-label="Dial coop (sin objetivo en esta fase)">
+                <div class="ticks" aria-hidden="true"></div>
+                <div class="needle" aria-hidden="true">
+                  <div class="bar" style="transform: translateX(-50%) rotate(${valueToDeg(store.current.guess)}deg)"></div>
+                  <div class="cap"></div>
+                </div>
+                <div class="arcLabel" aria-hidden="true">
+                  <div class="side">${card ? escapeHtml(card.left) : "—"}</div>
+                  <div class="mid">0–100</div>
+                  <div class="side" style="text-align:right;">${card ? escapeHtml(card.right) : "—"}</div>
+                </div>
+              </div>
+
+              <div class="notice" style="width:min(100%, 720px);">
+                <b>Coop:</b> el objetivo se genera al pasar a “Psíquico”. Cartas restantes: <b>${store.coop.remaining}</b>.
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="grow">
+                <label for="inpClue">Pista (opcional)</label>
+                <input class="input" id="inpClue" value="${escapeAttr(store.current.clue || "")}" placeholder="Escribe la pista para el historial (opcional)" />
+              </div>
+            </div>
+
+            <div class="row" style="justify-content:space-between;">
+              <span class="pill"><strong>Cartas totales:</strong> ${allCount}</span>
+              <button class="btn primary" id="btnGoPsychic" ${!card ? "disabled" : ""}>Ir a Psíquico</button>
+            </div>
+          </div>
+        `;
+
+        const btnRand = $("#btnRandCard");
+        const btnFlip = $("#btnFlipCard");
+        const btnGo = $("#btnGoPsychic");
+        const inpClue = $("#inpClue");
+
+        inpClue.addEventListener("input", debounce(() => {
+          store.current.clue = inpClue.value.trim().slice(0, 120);
+          maybeAutosave(store);
+        }, 120));
+
+        btnRand.addEventListener("click", () => {
+          store.resetCurrentRound();
+          store.current.cardIndex = store.drawCard(!!store._avoidRepeats);
+          store.current.cardFlipped = false;
+          store.current.guess = 50;
+          render(store);
+          showToast("Carta seleccionada.");
+          maybeAutosave(store);
+        });
+
+        btnFlip.addEventListener("click", () => {
+          if (store.current.cardIndex == null) return;
+          store.current.cardFlipped = !store.current.cardFlipped;
+          render(store);
+          showToast("Cara cambiada.");
+          maybeAutosave(store);
+        });
+
+        btnGo.addEventListener("click", () => {
+          if (store.current.cardIndex == null) return;
+          store.current.targetCenter = randomTarget();
+          store.setState(STATES.COOP_PSYCHIC_VIEW);
+          startTimerForState(store);
+          render(store);
+          showToast("Pantalla Psíquico (Coop).");
+          maybeAutosave(store);
+        });
+
+        if (!card){
+          store.current.cardIndex = store.drawCard(!!store._avoidRepeats);
+          store.current.cardFlipped = false;
+          maybeAutosave(store);
+          render(store);
+        }
+      }
+
+      function renderPsychicViewCoop(store){
+        const card = getCurrentCard(store);
+        const t = store.current.targetCenter ?? 50;
+
+        els.mainArea.innerHTML = `
+          <div class="col" style="gap:14px;">
+            <div class="notice">
+              <b class="warnText">Solo el Psíquico</b>. Centro vale <b>3</b> y da carta bonus. No uses números.
+            </div>
+
+            <div class="dialWrap">
+              <div class="dial" aria-label="Dial psíquico coop (objetivo visible)">
+                <div class="ticks" aria-hidden="true"></div>
+
+                <div class="wedgeLayer" aria-hidden="true">
+                  ${renderWedges(t)}
+                </div>
+
+                <div class="needle" aria-hidden="true">
+                  <div class="bar" style="transform: translateX(-50%) rotate(${valueToDeg(t)}deg)"></div>
+                  <div class="cap"></div>
+                </div>
+
+                <div class="arcLabel" aria-hidden="true">
+                  <div class="side">${card ? escapeHtml(card.left) : "—"}</div>
+                  <div class="mid"><b>Objetivo: ${t}</b></div>
+                  <div class="side" style="text-align:right;">${card ? escapeHtml(card.right) : "—"}</div>
+                </div>
+              </div>
+
+              <div class="legend" aria-label="Leyenda coop">
+                <span class="lg"><span class="sw w4"></span>3 pts (±${WEDGES.w4})</span>
+                <span class="lg"><span class="sw w3"></span>2 pts (±${WEDGES.w3})</span>
+                <span class="lg"><span class="sw w2"></span>1 pt (±${WEDGES.w2})</span>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="grow">
+                <label for="inpClue2">Pista (opcional)</label>
+                <input class="input" id="inpClue2" value="${escapeAttr(store.current.clue || "")}" placeholder="Escribe la pista que has dicho (opcional)" />
+              </div>
+            </div>
+
+            <div class="row" style="justify-content:space-between;">
+              <button class="btn" id="btnBackPick">Volver a carta</button>
+              <button class="btn primary" id="btnHidePass">Ocultar objetivo / Pasar al equipo</button>
+            </div>
+          </div>
+        `;
+
+        const inpClue2 = $("#inpClue2");
+        const btnBackPick = $("#btnBackPick");
+        const btnHidePass = $("#btnHidePass");
+
+        inpClue2.addEventListener("input", debounce(() => {
+          store.current.clue = inpClue2.value.trim().slice(0, 120);
+          maybeAutosave(store);
+        }, 120));
+
+        btnBackPick.addEventListener("click", () => {
+          if (!confirm("¿Volver a elegir carta? El objetivo se regenerará al ir de nuevo a Psíquico.")) return;
+          store.current.targetCenter = null;
+          store.setState(STATES.COOP_PICK_CARD);
+          startTimerForState(store);
+          render(store);
+          maybeAutosave(store);
+        });
+
+        btnHidePass.addEventListener("click", () => {
+          store.setState(STATES.COOP_TEAM_GUESS);
+          startTimerForState(store);
+          render(store);
+          showToast("Ahora decide el equipo (Coop).");
+          maybeAutosave(store);
+        });
+      }
+
+      function renderTeamGuessCoop(store){
+        const card = getCurrentCard(store);
+
+        els.mainArea.innerHTML = `
+          <div class="col" style="gap:14px;">
+            <div class="notice">
+              Objetivo oculto. Ajustad la posición y bloquead.
+            </div>
+
+            <div class="dialWrap">
+              <div class="dial" aria-label="Dial coop equipo (objetivo oculto)">
+                <div class="ticks" aria-hidden="true"></div>
+
+                <div class="needle" aria-hidden="true">
+                  <div class="bar" id="needleBar" style="transform: translateX(-50%) rotate(${valueToDeg(store.current.guess)}deg)"></div>
+                  <div class="cap"></div>
+                </div>
+
+                <div class="arcLabel" aria-hidden="true">
+                  <div class="side">${card ? escapeHtml(card.left) : "—"}</div>
+                  <div class="mid"><b>Posición</b></div>
+                  <div class="side" style="text-align:right;">${card ? escapeHtml(card.right) : "—"}</div>
+                </div>
+              </div>
+
+              <div class="sliderRow">
+                <label for="rngGuess">Selecciona posición (0–100)</label>
+                <input type="range" id="rngGuess" min="0" max="100" value="${store.current.guess}" aria-label="Selector de posición coop" />
+                <div class="numRow">
+                  <span>0</span>
+                  <span>Actual: <b id="guessVal">${store.current.guess}</b></span>
+                  <span>100</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <span class="pill"><strong>Carta:</strong> ${card ? escapeHtml(fmtCard(card)) : "—"}</span>
+              <span class="pill"><strong>Pista:</strong> ${escapeHtml(store.current.clue || "—")}</span>
+            </div>
+
+            <div class="row" style="justify-content:space-between;">
+              <button class="btn" id="btnBackPsychic">Volver (Psíquico)</button>
+              <button class="btn primary" id="btnLockGuess">Bloquear respuesta</button>
+            </div>
+          </div>
+        `;
+
+        const rng = $("#rngGuess");
+        const guessVal = $("#guessVal");
+        const needleBar = $("#needleBar");
+        const btnBack = $("#btnBackPsychic");
+        const btnLock = $("#btnLockGuess");
+
+        rng.addEventListener("input", () => {
+          const v = parseInt(rng.value, 10);
+          store.current.guess = clamp(v, 0, 100);
+          guessVal.textContent = store.current.guess;
+          needleBar.style.transform = `translateX(-50%) rotate(${valueToDeg(store.current.guess)}deg)`;
+        });
+
+        btnBack.addEventListener("click", () => {
+          if (!confirm("¿Volver a Psíquico? Asegúrate de que solo el Psíquico mire.")) return;
+          store.setState(STATES.COOP_PSYCHIC_VIEW);
+          startTimerForState(store);
+          render(store);
+          maybeAutosave(store);
+        });
+
+        btnLock.addEventListener("click", () => {
+          if (!confirm(`¿Bloquear la posición ${store.current.guess}?`)) return;
+          store.current.lockedGuess = true;
+          store.setState(STATES.COOP_REVEAL);
+          startTimerForState(store);
+          render(store);
+          showToast("Revelación (Coop).");
+          maybeAutosave(store);
+        });
+      }
+
+      function renderRevealCoop(store){
+        const card = getCurrentCard(store);
+        const t = store.current.targetCenter ?? 50;
+        const g = store.current.guess ?? 50;
+
+        const s = scoreGuess(t, g, "coop");
+        store.current.pointsTeam = s.teamPoints;
+        store.current.wedge = s.wedge;
+
+        const earnedBonus = (store.current.pointsTeam === 3);
+        const bonusText = earnedBonus ? `<b class="goodText">¡Carta bonus ganada!</b> (+1 carta)` : `<span class="muted">Sin bonus.</span>`;
+
+        els.mainArea.innerHTML = `
+          <div class="col" style="gap:14px;">
+            <div class="dialWrap">
+              <div class="dial" aria-label="Revelación coop (objetivo visible)">
+                <div class="ticks" aria-hidden="true"></div>
+
+                <div class="wedgeLayer" aria-hidden="true">
+                  ${renderWedges(t)}
+                </div>
+
+                <div class="needle" aria-hidden="true">
+                  <div class="bar" style="transform: translateX(-50%) rotate(${valueToDeg(g)}deg);"></div>
+                  <div class="cap"></div>
+                </div>
+
+                <div class="needle" aria-hidden="true">
+                  <div class="bar" style="
+                    transform: translateX(-50%) rotate(${valueToDeg(t)}deg);
+                    width: 2px;
+                    background: linear-gradient(180deg, rgba(125,211,252,.95), rgba(125,211,252,.12));
+                    box-shadow: 0 0 0 1px rgba(125,211,252,.25), 0 14px 28px rgba(0,0,0,.28);
+                  "></div>
+                </div>
+
+                <div class="arcLabel" aria-hidden="true">
+                  <div class="side">${card ? escapeHtml(card.left) : "—"}</div>
+                  <div class="mid"><b>Obj ${t} · Pos ${g}</b></div>
+                  <div class="side" style="text-align:right;">${card ? escapeHtml(card.right) : "—"}</div>
+                </div>
+              </div>
+
+              <div class="legend" aria-label="Leyenda coop">
+                <span class="lg"><span class="sw w4"></span>3 pts</span>
+                <span class="lg"><span class="sw w3"></span>2 pts</span>
+                <span class="lg"><span class="sw w2"></span>1 pt</span>
+              </div>
+            </div>
+
+            <div class="row">
+              <span class="pill"><strong>Puntos:</strong> +${store.current.pointsTeam} (${store.current.wedge})</span>
+              <span class="pill">${bonusText}</span>
+            </div>
+
+            <div class="notice">
+              <b>Carta:</b> ${card ? escapeHtml(fmtCard(card)) : "—"}<br>
+              <b>Pista:</b> ${escapeHtml(store.current.clue || "—")}
+            </div>
+
+            <div class="row" style="justify-content:space-between;">
+              <button class="btn" id="btnBackGuess">Volver (Equipo)</button>
+              <button class="btn primary" id="btnApply">Aplicar y continuar</button>
+            </div>
+          </div>
+        `;
+
+        $("#btnBackGuess").addEventListener("click", () => {
+          if (!confirm("¿Volver a la fase Equipo? El objetivo seguirá siendo el mismo.")) return;
+          store.setState(STATES.COOP_TEAM_GUESS);
+          startTimerForState(store);
+          render(store);
+          maybeAutosave(store);
+        });
+
+        $("#btnApply").addEventListener("click", () => {
+          applyRevealCoop(store);
+          maybeAutosave(store);
+          render(store);
+        });
+      }
+
+      function applyRevealCoop(store){
+        const card = getCurrentCard(store);
+
+        // Apply points
+        store.coop.totalScore += store.current.pointsTeam;
+
+        // Remaining cards decrement
+        store.coop.remaining -= 1;
+
+        // Bonus if center
+        if (store.current.pointsTeam === 3){
+          store.coop.remaining += 1;
+          store.coop.bonusEarned += 1;
+          showToast("Bonus: +1 carta.");
+        }
+
+        // History
+        store.history.push({
+          mode: "coop",
+          when: new Date().toLocaleString("es-ES", { hour: "2-digit", minute:"2-digit" }),
+          team: "ALL",
+          card: card ? fmtCard(card) : "—",
+          clue: store.current.clue || "",
+          target: store.current.targetCenter,
+          guess: store.current.guess,
+          ptsTeam: store.current.pointsTeam,
+          ptsOpp: 0,
+          wedge: store.current.wedge,
+          bet: null,
+          betResolved: null
+        });
+
+        // End condition: remaining reaches 0
+        if (store.coop.remaining <= 0){
+          store.setState(STATES.COOP_GAME_OVER);
+          stopTimer(store);
+          showToast("Fin (Coop).");
+          return;
+        }
+
+        // Next
+        store.resetCurrentRound();
+        store.setState(STATES.COOP_PICK_CARD);
+        startTimerForState(store);
+        showToast("Siguiente carta (Coop).");
+      }
+
+      function renderGameOverCoop(store){
+        const score = store.coop.totalScore;
+        const bonus = store.coop.bonusEarned;
+
+        const rating = coopRating(score);
+        els.mainArea.innerHTML = `
+          <div class="col" style="gap:14px;">
+            <div class="notice">
+              <b style="font-size:14px;">Puntuación total:</b> <b class="goodText">${score}</b><br>
+              <span class="muted">Cartas bonus ganadas: <b>${bonus}</b></span>
+              <div class="spaced">
+                <b>Evaluación:</b> <span class="muted">${escapeHtml(rating)}</span>
+              </div>
+            </div>
+
+            <div class="row" style="justify-content:center;">
+              <button class="btn primary" id="btnPlayAgain">Jugar otra coop</button>
+              <button class="btn" id="btnBackToSetup">Volver a configuración</button>
+            </div>
+
+            <div class="notice">
+              Revisa el historial a la derecha para ver cómo os fue en las últimas rondas.
+            </div>
+          </div>
+        `;
+
+        $("#btnPlayAgain").addEventListener("click", () => {
+          store.coop.remaining = 7;
+          store.coop.bonusEarned = 0;
+          store.coop.totalScore = 0;
+          store.history = [];
+          store.resetCurrentRound();
+          store.buildDeck(!!store._avoidRepeats);
+          store.setState(STATES.COOP_PICK_CARD);
+          startTimerForState(store);
+          render(store);
+          maybeAutosave(store);
+          showToast("Nueva coop.");
+        });
+
+        $("#btnBackToSetup").addEventListener("click", () => {
+          store.setState(STATES.SETUP);
+          stopTimer(store);
+          render(store);
+          maybeAutosave(store);
+        });
+      }
+
+      function coopRating(score){
+        // Simple textual evaluation
+        if (score >= 20) return "Telepatía total. Inquietante.";
+        if (score >= 14) return "Muy bien coordinados. Buenas lecturas.";
+        if (score >= 9)  return "Decente. Hay química, pero falta calibración.";
+        if (score >= 5)  return "Irregular. A veces conectáis, a veces no.";
+        return "Caos absoluto. Pero seguramente os lo pasasteis bien.";
+      }
+
+      /** -----------------------------
+       *  Cards Editor
+       *  ----------------------------- */
+      function renderEditor(store){
+        const all = store.combinedCards();
+        els.cardsCount.textContent = `${all.length} (base ${store.baseCards.length} + personalizadas ${store.customCards.length})`;
+
+        // Render list with delete for custom cards only
+        const container = els.cardsList;
+        container.innerHTML = "";
+
+        const list = document.createElement("div");
+        list.className = "col";
+        list.style.gap = "8px";
+
+        const baseHeader = document.createElement("div");
+        baseHeader.className = "notice";
+        baseHeader.innerHTML = `<b>Base:</b> ${store.baseCards.length} cartas · <b>Personalizadas:</b> ${store.customCards.length}`;
+        list.appendChild(baseHeader);
+
+        const makeRow = (card, idx, isCustom) => {
+          const wrap = document.createElement("div");
+          wrap.className = "hitem";
+          wrap.innerHTML = `
+            <div class="top">
+              <b>${escapeHtml(fmtCard(card))}</b>
+              <span>${isCustom ? "Personalizada" : "Base"}</span>
+            </div>
+            <div class="meta">
+              <span class="muted">ID: ${idx}</span>
+              ${isCustom ? `<button class="btn small danger" data-del="${idx}">Eliminar</button>` : ""}
+            </div>
+          `;
+          return wrap;
+        };
+
+        // show last ~40 to avoid giant DOM
+        const MAX = 50;
+        const start = Math.max(0, all.length - MAX);
+        const slice = all.slice(start);
+
+        const note = document.createElement("div");
+        note.className = "notice";
+        note.innerHTML = `Mostrando las últimas <b>${slice.length}</b> cartas (de ${all.length}).`;
+        list.appendChild(note);
+
+        slice.forEach((card, i) => {
+          const globalIdx = start + i;
+          const isCustom = globalIdx >= store.baseCards.length;
+          const row = makeRow(card, globalIdx, isCustom);
+          list.appendChild(row);
+        });
+
+        container.appendChild(list);
+
+        // Delete handler (custom only)
+        $("[data-del]", container)?.addEventListener?.("click", () => {});
+        container.addEventListener("click", (e) => {
+          const btn = e.target.closest("[data-del]");
+          if (!btn) return;
+          const idx = parseInt(btn.getAttribute("data-del"), 10);
+          if (!Number.isFinite(idx)) return;
+          const customIdx = idx - store.baseCards.length;
+          if (customIdx < 0 || customIdx >= store.customCards.length) return;
+          if (!confirm("¿Eliminar esta carta personalizada?")) return;
+          store.customCards.splice(customIdx, 1);
+          store.saveCustomCards();
+          showToast("Carta eliminada.");
+          renderEditor(store);
+          maybeAutosave(store);
+        });
+      }
+
+      /** -----------------------------
+       *  Timer
+       *  ----------------------------- */
+      function stopTimer(store){
+        if (store.timerHandle){
+          clearInterval(store.timerHandle);
+          store.timerHandle = null;
+        }
+        store.timerEndsAt = 0;
+        store.timerSec = 0;
+      }
+
+      function stateTimeLimitSec(state){
+        // sensible defaults; toggle off by default
+        switch (state){
+          case STATES.PICK_CARD:
+          case STATES.COOP_PICK_CARD: return 45;
+          case STATES.PSYCHIC_VIEW:
+          case STATES.COOP_PSYCHIC_VIEW: return 45;
+          case STATES.TEAM_GUESS:
+          case STATES.COOP_TEAM_GUESS: return 60;
+          case STATES.OPPONENT_BET: return 25;
+          case STATES.REVEAL:
+          case STATES.COOP_REVEAL: return 45;
+          default: return 0;
+        }
+      }
+
+      function startTimerForState(store){
+        stopTimer(store);
+        if (!store.timerEnabled) return;
+
+        const limit = stateTimeLimitSec(store.state);
+        if (!limit) return;
+
+        store.timerSec = limit;
+        store.timerEndsAt = now() + limit * 1000;
+
+        store.timerHandle = setInterval(() => {
+          updateHeaderPills(store);
+          const rem = Math.max(0, Math.ceil((store.timerEndsAt - now())/1000));
+          if (rem <= 0){
+            clearInterval(store.timerHandle);
+            store.timerHandle = null;
+            store.timerEndsAt = 0;
+            store.timerSec = 0;
+            updateHeaderPills(store);
+
+            // Soft behavior: just notify, don't auto-advance to avoid state errors.
+            showToast("⏱️ Tiempo agotado. Decid rápido o desactivad el temporizador.");
+          }
+        }, 250);
+      }
+
+      /** -----------------------------
+       *  Autosave
+       *  ----------------------------- */
+      function maybeAutosave(store){
+        if (!store.autosave) return;
+        saveToStorage(store);
+      }
+
+      function saveToStorage(store){
+        const payload = {
+          v: 1,
+          autosave: store.autosave,
+          timerEnabled: store.timerEnabled,
+          mode: store.mode,
+          targetScore: store.targetScore,
+          team: store.team,
+          activeTeam: store.activeTeam,
+          round: store.round,
+          suddenDeath: store.suddenDeath,
+          current: store.current,
+          coop: store.coop,
+          history: store.history,
+          avoidRepeats: !!store._avoidRepeats,
+          deck: store.deck,
+          used: Array.from(store.used),
+          ts: Date.now()
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      }
+
+      function loadFromStorage(store){
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const data = safeJsonParse(raw, null);
+        if (!data || data.v !== 1) return false;
+
+        // Basic validate
+        if (!data.team || !data.team.A || !data.team.B) return false;
+
+        store.autosave = !!data.autosave;
+        store.timerEnabled = !!data.timerEnabled;
+        store.mode = data.mode === "coop" ? "coop" : "competitive";
+        store.targetScore = clamp(Number(data.targetScore || 10), 3, 99);
+
+        store.team = {
+          A: { name: String(data.team.A.name || "Equipo A"), score: Number(data.team.A.score || 0), psychicIndex: Number(data.team.A.psychicIndex || 1) },
+          B: { name: String(data.team.B.name || "Equipo B"), score: Number(data.team.B.score || 1), psychicIndex: Number(data.team.B.psychicIndex || 1) }
+        };
+
+        store.activeTeam = data.activeTeam === "B" ? "B" : "A";
+        store.round = Number(data.round || 1);
+        store.suddenDeath = !!data.suddenDeath;
+
+        store.current = data.current || store.current;
+        store.coop = data.coop || store.coop;
+        store.history = Array.isArray(data.history) ? data.history.slice(-50) : [];
+
+        store._avoidRepeats = !!data.avoidRepeats;
+        store.deck = Array.isArray(data.deck) ? data.deck : [];
+        store.used = new Set(Array.isArray(data.used) ? data.used : []);
+
+        // Determine state
+        const s = String(data.state || data._state || "");
+        // We didn't store 'state' earlier; store it now on save
+        // We'll infer: if current.targetCenter exists and current.opponentBet set etc.
+        // Prefer to store: modify saveToStorage to include state.
+        // For backward: default to SETUP.
+        store.state = STATES.SETUP;
+
+        // If payload included state:
+        if (data.state && Object.values(STATES).includes(data.state)){
+          store.state = data.state;
+        } else {
+          // Infer by competitive/coop and current flags
+          if (store.mode === "coop"){
+            if (store.coop.remaining <= 0) store.state = STATES.COOP_GAME_OVER;
+            else if (store.current.targetCenter != null && store.current.lockedGuess) store.state = STATES.COOP_REVEAL;
+            else if (store.current.targetCenter != null) store.state = STATES.COOP_TEAM_GUESS;
+            else store.state = STATES.COOP_PICK_CARD;
+          } else {
+            const a = store.team.A.score, b = store.team.B.score;
+            if ((a >= store.targetScore || b >= store.targetScore) && (a !== b || store.suddenDeath)){
+              store.state = STATES.GAME_OVER;
+            } else if (store.current.targetCenter != null && store.current.opponentBet && store.current.lockedGuess){
+              store.state = STATES.REVEAL;
+            } else if (store.current.targetCenter != null && store.current.lockedGuess){
+              store.state = STATES.OPPONENT_BET;
+            } else if (store.current.targetCenter != null){
+              store.state = STATES.TEAM_GUESS;
+            } else {
+              store.state = STATES.PICK_CARD;
+            }
+          }
+        }
+
+        return true;
+      }
+
+      /** -----------------------------
+       *  Global controls and handlers
+       *  ----------------------------- */
+      function bindGlobalUI(store){
+        // Instructions
+        els.btnInstructions.addEventListener("click", () => openModal(els.modalInstructions));
+        els.btnCloseInstructions.addEventListener("click", () => closeModal(els.modalInstructions));
+        els.modalInstructions.addEventListener("click", (e) => {
+          if (e.target === els.modalInstructions) closeModal(els.modalInstructions);
+        });
+
+        // Editor modal
+        els.btnCloseEditor.addEventListener("click", () => closeModal(els.modalEditor));
+        els.modalEditor.addEventListener("click", (e) => {
+          if (e.target === els.modalEditor) closeModal(els.modalEditor);
+        });
+
+        // ESC closes modals
+        window.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && isModalOpen()){
+            closeModal(els.modalInstructions);
+            closeModal(els.modalEditor);
+          }
+        });
+
+        // Autosave toggle
+        els.toggleAutosave.addEventListener("change", () => {
+          store.autosave = !!els.toggleAutosave.checked;
+          showToast(store.autosave ? "Autosave activado." : "Autosave desactivado.");
+          if (store.autosave) saveToStorage(store);
+        });
+
+        // Timer toggle
+        els.toggleTimer.addEventListener("change", () => {
+          store.timerEnabled = !!els.toggleTimer.checked;
+          showToast(store.timerEnabled ? "Temporizador activado." : "Temporizador desactivado.");
+          startTimerForState(store);
+          maybeAutosave(store);
+          render(store);
+        });
+
+        // Fullscreen
+        els.btnFullscreen.addEventListener("click", async () => {
+          try{
+            if (!document.fullscreenElement){
+              await document.documentElement.requestFullscreen();
+              showToast("Pantalla completa.");
+            } else {
+              await document.exitFullscreen();
+              showToast("Salir de pantalla completa.");
+            }
+          } catch {
+            showToast("Pantalla completa no disponible.");
+          }
+        });
+
+        // Pass device helper
+        els.btnPassDevice.addEventListener("click", () => {
+          const msg = passDeviceMessage(store);
+          showToast(msg, 2600);
+        });
+
+        // Next psychic manual
+        els.btnNextPsychicA.addEventListener("click", () => {
+          store.team.A.psychicIndex += 1;
+          renderScoreboard(store);
+          maybeAutosave(store);
+          showToast("Psíquico A cambiado.");
+        });
+        els.btnNextPsychicB.addEventListener("click", () => {
+          store.team.B.psychicIndex += 1;
+          renderScoreboard(store);
+          maybeAutosave(store);
+          showToast("Psíquico B cambiado.");
+        });
+
+        // Reset
+        els.btnReset.addEventListener("click", () => {
+          const msg = "Esto borrará la partida guardada (y el estado). Las cartas personalizadas NO se borran salvo que lo hagas en el editor. ¿Continuar?";
+          if (!confirm(msg)) return;
+          localStorage.removeItem(STORAGE_KEY);
+          stopTimer(store);
+          // Keep custom cards & names as convenience; reset game state
+          const keepA = store.team.A.name, keepB = store.team.B.name;
+          const autosave = store.autosave;
+          const timer = store.timerEnabled;
+          Object.assign(store, new Store()); // re-init
+          store.customCards = store.loadCustomCards();
+          store.team.A.name = keepA;
+          store.team.B.name = keepB;
+          store.autosave = autosave;
+          store.timerEnabled = timer;
+          els.toggleAutosave.checked = store.autosave;
+          els.toggleTimer.checked = store.timerEnabled;
+          render(store);
+          showToast("Reset completado.");
+        });
+
+        // Editor actions
+        els.btnAddCard.addEventListener("click", () => {
+          const left = (els.newLeft.value || "").trim();
+          const right = (els.newRight.value || "").trim();
+          if (!left || !right){
+            showToast("Completa ambos extremos.");
+            return;
+          }
+          if (left.toLowerCase() === right.toLowerCase()){
+            showToast("Los extremos deben ser distintos.");
+            return;
+          }
+          store.customCards.push({ left, right });
+          store.saveCustomCards();
+          els.newLeft.value = "";
+          els.newRight.value = "";
+          renderEditor(store);
+          showToast("Carta añadida.");
+          maybeAutosave(store);
+        });
+
+        els.btnClearCustomCards.addEventListener("click", () => {
+          if (!confirm("¿Borrar TODAS las cartas personalizadas guardadas en este dispositivo?")) return;
+          store.clearCustomCards();
+          renderEditor(store);
+          showToast("Cartas personalizadas borradas.");
+          maybeAutosave(store);
+        });
+
+        els.btnExportCards.addEventListener("click", async () => {
+          const data = JSON.stringify(store.customCards, null, 2);
+          try{
+            await navigator.clipboard.writeText(data);
+            showToast("Cartas copiadas al portapapeles (JSON).");
+          } catch {
+            prompt("Copia este JSON:", data);
+          }
+        });
+
+        els.btnImportCards.addEventListener("click", () => {
+          const raw = prompt("Pega aquí el JSON de cartas (array de {left,right}):");
+          if (!raw) return;
+          const arr = safeJsonParse(raw, null);
+          if (!Array.isArray(arr)){
+            showToast("JSON inválido.");
+            return;
+          }
+          const cleaned = arr
+            .filter(x => x && typeof x.left === "string" && typeof x.right === "string")
+            .map(x => ({ left: x.left.trim(), right: x.right.trim() }))
+            .filter(x => x.left && x.right && x.left.toLowerCase() !== x.right.toLowerCase());
+
+          if (!cleaned.length){
+            showToast("No se encontraron cartas válidas.");
+            return;
+          }
+
+          store.customCards.push(...cleaned);
+          store.saveCustomCards();
+          renderEditor(store);
+          showToast(`Importadas ${cleaned.length} cartas.`);
+          maybeAutosave(store);
+        });
+      }
+
+      function passDeviceMessage(store){
+        const s = store.state;
+        if (s === STATES.PSYCHIC_VIEW || s === STATES.COOP_PSYCHIC_VIEW) return "📱 Pantalla del PSÍQUICO: que nadie más mire.";
+        if (s === STATES.TEAM_GUESS || s === STATES.COOP_TEAM_GUESS) return "📱 Pantalla del EQUIPO: decid la posición sin ver el objetivo.";
+        if (s === STATES.OPPONENT_BET) return "📱 Pantalla del RIVAL: elegid LEFT/RIGHT.";
+        if (s === STATES.REVEAL || s === STATES.COOP_REVEAL) return "📱 Revelación: ahora puede mirar todo el mundo.";
+        if (s === STATES.PICK_CARD || s === STATES.COOP_PICK_CARD) return "📱 Elección de carta: puede mirar todo el mundo.";
+        return "📱 Estado actual listo.";
+      }
+
+      /** -----------------------------
+       *  Save state with explicit 'state'
+       *  ----------------------------- */
+      // Patch saveToStorage to include 'state'
+      const _saveToStorage = saveToStorage;
+      saveToStorage = function(store){
+        const payload = {
+          v: 1,
+          state: store.state,
+          autosave: store.autosave,
+          timerEnabled: store.timerEnabled,
+          mode: store.mode,
+          targetScore: store.targetScore,
+          team: store.team,
+          activeTeam: store.activeTeam,
+          round: store.round,
+          suddenDeath: store.suddenDeath,
+          current: store.current,
+          coop: store.coop,
+          history: store.history,
+          avoidRepeats: !!store._avoidRepeats,
+          deck: store.deck,
+          used: Array.from(store.used),
+          ts: Date.now()
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      };
+
+      /** -----------------------------
+       *  Boot
+       *  ----------------------------- */
+      const store = new Store();
+
+      // Load saved state if exists
+      const loaded = loadFromStorage(store);
+      els.toggleAutosave.checked = store.autosave;
+      els.toggleTimer.checked = store.timerEnabled;
+
+      bindGlobalUI(store);
+
+      // Start timer if enabled
+      startTimerForState(store);
+
+      // Render initial
+      render(store);
+
+      if (loaded){
+        showToast("Partida cargada (autosave).");
+      }
+
+      // Persist on unload (if autosave on)
+      window.addEventListener("beforeunload", () => {
+        if (store.autosave) saveToStorage(store);
+      });
+
+    })();
+  </script>
+</body>
+</html>
