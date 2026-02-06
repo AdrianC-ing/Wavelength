@@ -9,30 +9,35 @@
     :root{
       --bg: #0b0f17;
       --panel: rgba(255,255,255,.07);
-      --panel2: rgba(255,255,255,.10);
       --line: rgba(255,255,255,.14);
       --text: rgba(255,255,255,.92);
       --muted: rgba(255,255,255,.68);
       --shadow: 0 16px 44px rgba(0,0,0,.40);
       --shadow2: 0 18px 60px rgba(0,0,0,.50);
-      --radius: 20px;
       --radius2: 26px;
       --focus: 2px solid rgba(120,200,255,.9);
+      --anim: 180ms cubic-bezier(.2,.8,.2,1);
 
       --p1: #7dd3fc;
       --p2: #a78bfa;
 
-      --w2: rgba(251,191,36,.20);
-      --w3: rgba(52,211,153,.22);
-      --w4: rgba(125,211,252,.28);
-
-      --anim: 180ms cubic-bezier(.2,.8,.2,1);
+      /* Dial physical-ish */
+      --dialFace: #efe9dc;      /* beige */
+      --dialFaceEdge: rgba(0,0,0,.08);
+      --dialWindow2: #ffb44d;   /* 2 pts */
+      --dialWindow3: #ff7a3c;   /* 3 pts */
+      --dialWindow4: #6bb6ff;   /* 4 pts */
+      --dialNeedle: #cf3b3b;    /* red */
+      --dialNeedle2: rgba(255,255,255,.55);
+      --dialCenter: #c73737;    /* red knob */
+      --dialTextDark: rgba(0,0,0,.78);
+      --dialTextLight: rgba(255,255,255,.88);
     }
+
     @media (prefers-color-scheme: light){
       :root{
         --bg:#f6f7fb;
         --panel: rgba(0,0,0,.05);
-        --panel2: rgba(0,0,0,.08);
         --line: rgba(0,0,0,.12);
         --text: rgba(0,0,0,.88);
         --muted: rgba(0,0,0,.60);
@@ -49,25 +54,17 @@
       background:
         radial-gradient(900px 650px at 20% -10%, rgba(125,211,252,.25), transparent 60%),
         radial-gradient(900px 650px at 90% -10%, rgba(167,139,250,.22), transparent 60%),
-        radial-gradient(800px 600px at 50% 110%, rgba(52,211,153,.16), transparent 65%),
+        radial-gradient(800px 600px at 50% 110%, rgba(52,211,153,.14), transparent 65%),
         var(--bg);
       color: var(--text);
       line-height:1.35;
     }
 
-    .wrap{
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 16px 14px 32px;
-    }
+    .wrap{ max-width: 1100px; margin: 0 auto; padding: 16px 14px 32px; }
 
     header{
-      display:flex;
-      align-items:center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 14px;
+      display:flex; align-items:center; justify-content: space-between;
+      gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
     }
     .brand{ display:flex; align-items:center; gap:10px; }
     .logo{
@@ -171,7 +168,7 @@
     }
 
     label{ font-size:12px; color: var(--muted); display:block; margin-bottom:6px; }
-    .input, textarea{
+    .input{
       width:100%;
       border-radius: 14px;
       border: 1px solid var(--line);
@@ -181,7 +178,7 @@
       font-size: 13px;
       outline:none;
     }
-    .input:focus, textarea:focus{
+    .input:focus{
       border-color: rgba(125,211,252,.55);
       background: rgba(255,255,255,.07);
     }
@@ -204,9 +201,9 @@
       inset:0;
       pointer-events:none;
       background:
-        radial-gradient(700px 260px at 50% 110%, rgba(255,255,255,.10), transparent 60%),
-        radial-gradient(320px 240px at 12% 0%, rgba(125,211,252,.10), transparent 65%),
-        radial-gradient(340px 260px at 88% 0%, rgba(167,139,250,.10), transparent 65%);
+        radial-gradient(700px 260px at 50% 110%, rgba(255,255,255,.08), transparent 60%),
+        radial-gradient(320px 240px at 12% 0%, rgba(125,211,252,.08), transparent 65%),
+        radial-gradient(340px 260px at 88% 0%, rgba(167,139,250,.08), transparent 65%);
       opacity:.9;
     }
     .dialInner{ position: relative; z-index: 1; }
@@ -250,9 +247,9 @@
       border-radius: 999px;
     }
     .sw{ width: 12px; height: 12px; border-radius: 4px; display:inline-block; }
-    .sw.w2{ background: rgba(251,191,36,.30); }
-    .sw.w3{ background: rgba(52,211,153,.30); }
-    .sw.w4{ background: rgba(125,211,252,.36); }
+    .sw.w2{ background: var(--dialWindow2); }
+    .sw.w3{ background: var(--dialWindow3); }
+    .sw.w4{ background: var(--dialWindow4); }
 
     .sliderRow{
       width: min(100%, 560px);
@@ -440,7 +437,7 @@
             </div>
 
             <div class="notice">
-              Ventana de puntuación: <b>1/4</b> de la semicircunferencia (como el juego físico).
+              Dial estilo “juego físico”: ventana pequeña con 2–3–4–3–2.
             </div>
           </div>
         </div>
@@ -557,22 +554,16 @@
       ];
 
       const GOAL = 10;
-
-      // Lógica de puntos (se mantiene)
       const WEDGES = { w4: 5, w3: 12, w2: 20 };
-
-      // Ventana visual del juego físico: 1/4 de la semicircunferencia = 90°
-      // La semicircunferencia son 100 valores => 180° => 1 valor = 1.8°
-      // 90° => 50 valores => +/-25
-      const WINDOW_HALF_VAL = 25;
 
       const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
       const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 
-      // 0..100 -> radianes en semicircunferencia superior (0 izquierda π, 100 derecha 0)
+      // Value 0..100 -> radians on upper semicircle
+      // 0 = left (π), 50 = up (π/2), 100 = right (0)
       function valueToRad(v){
         const x = clamp(v,0,100)/100;
-        return Math.PI * (1 - x); // π..0
+        return Math.PI * (1 - x);
       }
 
       function randomTarget(){ return rnd(0, 100); }
@@ -711,7 +702,6 @@
         return { x: cx + Math.cos(rad)*r, y: cy - Math.sin(rad)*r };
       }
 
-      // Donut sector (pie slice with thickness)
       function donutSectorPath(cx, cy, rOuter, rInner, startRad, endRad){
         const p1o = polarPoint(cx, cy, rOuter, startRad);
         const p2o = polarPoint(cx, cy, rOuter, endRad);
@@ -721,7 +711,6 @@
         const delta = Math.abs(endRad - startRad);
         const largeArc = delta > Math.PI ? 1 : 0;
 
-        // Outer arc sweep = 1, inner arc sweep = 0 to close properly
         return [
           `M ${p1o.x.toFixed(2)} ${p1o.y.toFixed(2)}`,
           `A ${rOuter} ${rOuter} 0 ${largeArc} 1 ${p2o.x.toFixed(2)} ${p2o.y.toFixed(2)}`,
@@ -739,55 +728,89 @@
         return `<line x1="${p1.x.toFixed(2)}" y1="${p1.y.toFixed(2)}" x2="${p2.x.toFixed(2)}" y2="${p2.y.toFixed(2)}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" opacity="${opacity}"></line>`;
       }
 
-      // *** NUEVO: ventana 90° + franjas tipo pie chart (donut) ***
-      function wedgesSVG(center){
+      // Visual window like the physical game:
+      // A fixed small fan (not centered on the target) and five discrete slices 2–3–4–3–2.
+      // The *scoring logic* still uses ±5/±12/±20 around target (unchanged).
+      function scoringFanSVG(targetVal){
         const cx=200, cy=200;
-        const cVal = clamp(center,0,100);
 
-        const radPerVal = Math.PI / 100; // semicircunferencia = π rad
-        const cRad = valueToRad(cVal);
+        // Fan placement: anchored near the left side like the photo.
+        // We'll render it in the arc region between angles ~150° to ~110° (in our rad system: π is left, 0 is right).
+        // That corresponds to radians around [~2.62 .. ~1.92]. We'll define as "fanStartRad .. fanEndRad".
+        const fanStartRad = 2.62; // ~150°
+        const fanEndRad   = 2.02; // ~116°
+        const fanMidRad = (fanStartRad + fanEndRad)/2;
 
-        const windowHalfRad = WINDOW_HALF_VAL * radPerVal; // 25 vals => π/4
-
-        // Ventana total (quarter of semicircle) around center
-        const wStart = clamp(cRad - windowHalfRad, 0, Math.PI);
-        const wEnd   = clamp(cRad + windowHalfRad, 0, Math.PI);
-
-        // Helper to clip any band to window
-        const band = (halfVal) => {
-          const halfRad = clamp(halfVal, 0, WINDOW_HALF_VAL) * radPerVal;
-          const s = clamp(cRad - halfRad, wStart, wEnd);
-          const e = clamp(cRad + halfRad, wStart, wEnd);
-          return { s, e };
-        };
-
-        const b2 = band(WEDGES.w2);
-        const b3 = band(WEDGES.w3);
-        const b4 = band(WEDGES.w4);
-
-        // Donut thickness (so it looks like the physical scoring window)
+        // Donut thickness to mimic plastic window
         const rOuter = 160;
-        const rInner = 95;
+        const rInner = 85;
 
-        // Slight outline for the whole window
-        const windowOutline = donutSectorPath(cx, cy, rOuter, rInner, wStart, wEnd);
+        // Five slices arranged contiguous inside the fan: 2-3-4-3-2
+        // Make the center slice (4) a bit wider visually than the 3s, and 2s slightly wider than 3s
+        // to match the "fan" look. (Visual only; scoring stays correct.)
+        const totalSpan = Math.abs(fanEndRad - fanStartRad);
+        const weights = [1.15, 0.95, 1.05, 0.95, 1.15];
+        const wsum = weights.reduce((a,b)=>a+b,0);
+        const spans = weights.map(w => totalSpan*(w/wsum));
 
-        // Draw nested “pie slices” inside the window
-        const p2 = donutSectorPath(cx, cy, rOuter, rInner, b2.s, b2.e);
-        const p3 = donutSectorPath(cx, cy, rOuter, rInner, b3.s, b3.e);
-        const p4 = donutSectorPath(cx, cy, rOuter, rInner, b4.s, b4.e);
+        const slices = [];
+        let cur = fanStartRad;
 
-        // Also draw thin separators at the window edges
-        const edge1 = needleLineSVG( clamp(cVal - WINDOW_HALF_VAL, 0, 100), 200, 70, "rgba(255,255,255,.18)", 2, 1);
-        const edge2 = needleLineSVG( clamp(cVal + WINDOW_HALF_VAL, 0, 100), 200, 70, "rgba(255,255,255,.18)", 2, 1);
+        const colors = [
+          "var(--dialWindow2)",
+          "var(--dialWindow3)",
+          "var(--dialWindow4)",
+          "var(--dialWindow3)",
+          "var(--dialWindow2)"
+        ];
+        const labels = ["2","3","4","3","2"];
+
+        for (let i=0;i<5;i++){
+          const next = cur - spans[i]; // move "towards up" (smaller rad)
+          const s = cur;
+          const e = next;
+          const path = donutSectorPath(cx, cy, rOuter, rInner, s, e);
+
+          const mid = (s+e)/2;
+          const p = polarPoint(cx, cy, (rOuter+rInner)/2 + 2, mid);
+
+          slices.push(`
+            <path d="${path}" fill="${colors[i]}" opacity="0.95"></path>
+            <text x="${p.x.toFixed(2)}" y="${p.y.toFixed(2)}"
+                  text-anchor="middle" dominant-baseline="middle"
+                  font-size="14" font-weight="900"
+                  fill="var(--dialTextDark)">
+              ${labels[i]}
+            </text>
+          `);
+
+          cur = next;
+        }
+
+        // Visual highlight: a subtle outline and a tiny pointer line marking the actual target (optional)
+        // We'll draw a thin line pointing to the target value, but only in reveal/psychic.
+        const tRad = valueToRad(targetVal);
+        const tP1 = polarPoint(cx, cy, 200, tRad);
+        const tP2 = polarPoint(cx, cy, rInner-6, tRad);
 
         return `
-          <path d="${windowOutline}" fill="rgba(255,255,255,.04)" stroke="rgba(255,255,255,.14)" stroke-width="1"></path>
-          <path d="${p2}" fill="var(--w2)"></path>
-          <path d="${p3}" fill="var(--w3)"></path>
-          <path d="${p4}" fill="var(--w4)"></path>
-          ${edge1}
-          ${edge2}
+          <g>
+            <!-- Subtle shadow behind fan -->
+            <path d="${donutSectorPath(cx, cy, rOuter+1, rInner-1, fanStartRad, fanEndRad)}"
+                  fill="rgba(0,0,0,.08)"></path>
+
+            <!-- Fan slices -->
+            ${slices.join("")}
+
+            <!-- Fan outline -->
+            <path d="${donutSectorPath(cx, cy, rOuter, rInner, fanStartRad, fanEndRad)}"
+                  fill="none" stroke="rgba(0,0,0,.22)" stroke-width="1"></path>
+
+            <!-- (Optional) target marker line, subtle -->
+            <line x1="${tP1.x.toFixed(2)}" y1="${tP1.y.toFixed(2)}"
+                  x2="${tP2.x.toFixed(2)}" y2="${tP2.y.toFixed(2)}"
+                  stroke="rgba(0,0,0,.22)" stroke-width="2" stroke-linecap="round" opacity="0.35"></line>
+          </g>
         `;
       }
 
@@ -795,56 +818,56 @@
         const t = target ?? 50;
         const g = guess ?? 50;
 
+        // Half-disc face path
+        const halfDisc = `M 40 200 A 160 160 0 0 1 360 200 L 200 200 Z`;
+
         return `
           <div class="dial">
             <div class="dialInner">
               <svg class="dialSvg" viewBox="0 0 400 250" aria-label="Dial Wavelength" role="img">
                 <defs>
                   <filter id="softShadow" x="-50%" y="-50%" width="200%" height="200%">
-                    <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="rgba(0,0,0,.35)"/>
+                    <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="rgba(0,0,0,.25)"/>
                   </filter>
                 </defs>
 
-                <!-- Base arc -->
-                <path d="M 40 200 A 160 160 0 0 1 360 200"
-                      fill="none" stroke="rgba(255,255,255,.35)" stroke-width="10" stroke-linecap="round"/>
+                <!-- Face (filled semicircle like the physical board) -->
+                <g filter="url(#softShadow)">
+                  <path d="${halfDisc}" fill="var(--dialFace)" stroke="var(--dialFaceEdge)" stroke-width="2"></path>
+                </g>
 
-                <!-- Ticks -->
+                <!-- Ticks (very subtle, like engraved) -->
                 ${
                   Array.from({length: 21}, (_,i)=>{
                     const v = i*5;
-                    const cx=200, cy=200;
                     const rad = valueToRad(v);
-                    const r1 = 150;
-                    const r2 = (i%5===0) ? 132 : 140;
-                    const p1 = polarPoint(cx, cy, r1, rad);
-                    const p2 = polarPoint(cx, cy, r2, rad);
+                    const r1 = 154;
+                    const r2 = (i%5===0) ? 138 : 146;
+                    const p1 = polarPoint(200, 200, r1, rad);
+                    const p2 = polarPoint(200, 200, r2, rad);
                     const sw = (i%5===0) ? 2.2 : 1.2;
-                    const op = (i%5===0) ? .26 : .18;
-                    return `<line x1="${p1.x.toFixed(2)}" y1="${p1.y.toFixed(2)}" x2="${p2.x.toFixed(2)}" y2="${p2.y.toFixed(2)}" stroke="rgba(255,255,255,${op})" stroke-width="${sw}" />`;
+                    const op = (i%5===0) ? .16 : .10;
+                    return `<line x1="${p1.x.toFixed(2)}" y1="${p1.y.toFixed(2)}" x2="${p2.x.toFixed(2)}" y2="${p2.y.toFixed(2)}" stroke="rgba(0,0,0,${op})" stroke-width="${sw}" />`;
                   }).join("")
                 }
 
-                <!-- Scoring window + pie slices (only when target visible) -->
-                ${showTarget ? wedgesSVG(t) : ""}
+                <!-- Scoring fan (only when target visible) -->
+                ${showTarget ? scoringFanSVG(t) : ""}
 
-                <!-- Target needle -->
-                ${showTarget ? `
-                  <g filter="url(#softShadow)">
-                    ${needleLineSVG(t, 200, 64, "rgba(125,211,252,.95)", 3, 0.95)}
-                    ${needleLineSVG(t, 200, 64, "rgba(125,211,252,.30)", 8, 0.22)}
-                  </g>
-                ` : ""}
-
-                <!-- Guess needle -->
+                <!-- Guess needle (red, like the physical pointer) -->
                 ${showGuess ? `
                   <g filter="url(#softShadow)">
-                    ${needleLineSVG(g, 200, 56, "rgba(255,255,255,.92)", 5, 0.95)}
-                    ${needleLineSVG(g, 200, 56, "rgba(255,255,255,.20)", 10, 0.20)}
+                    ${needleLineSVG(g, 200, 52, "var(--dialNeedle)", 7, 0.95)}
+                    ${needleLineSVG(g, 200, 58, "var(--dialNeedle2)", 3, 0.55)}
                   </g>
                 ` : ""}
 
-                <circle cx="200" cy="200" r="12" fill="rgba(255,255,255,.10)" stroke="rgba(255,255,255,.22)"></circle>
+                <!-- Center knob (big red circle) -->
+                <g filter="url(#softShadow)">
+                  <circle cx="200" cy="200" r="58" fill="var(--dialCenter)"></circle>
+                  <circle cx="200" cy="200" r="58" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="2"></circle>
+                  <circle cx="200" cy="200" r="20" fill="rgba(255,255,255,.12)"></circle>
+                </g>
               </svg>
 
               <div class="dialLabels" aria-hidden="true">
