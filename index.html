@@ -211,14 +211,13 @@
     .dialInner{ position: relative; z-index: 1; }
     .dialSvg{ width: 100%; height: auto; display:block; }
 
-    .dial.isInteractive{
-      outline: none;
-    }
+    .dial.isInteractive{ outline:none; }
     .dial.isInteractive:focus-visible{
       outline: var(--focus);
       outline-offset: 3px;
       border-radius: 24px;
     }
+
     .dialHelp{
       width: min(100%, 620px);
       margin: 0 auto;
@@ -406,21 +405,10 @@
       box-shadow: var(--shadow2);
       padding: 16px;
     }
-    .passCard h2{
-      margin:0;
-      font-size: 18px;
-      letter-spacing:.2px;
-    }
-    .passCard p{
-      margin: 8px 0 0;
-      color: rgba(255,255,255,.78);
-      font-size: 13px;
-    }
+    .passCard h2{ margin:0; font-size: 18px; letter-spacing:.2px; }
+    .passCard p{ margin: 8px 0 0; color: rgba(255,255,255,.78); font-size: 13px; }
     .passCard .row{ margin-top: 14px; justify-content: space-between; }
-    .passCard .big{
-      font-size: 13px;
-      color: rgba(255,255,255,.85);
-    }
+    .passCard .big{ font-size: 13px; color: rgba(255,255,255,.85); }
 
     .srOnly{
       position:absolute !important;
@@ -548,9 +536,9 @@
           <li>±3: <b>4</b>, ±6: <b>3</b>, ±10: <b>2</b>, fuera: <b>0</b>.</li>
           <li>Rival: <b>+1</b> si acierta LEFT/RIGHT, <b>siempre</b>.</li>
         </ul>
-        <h3>Control de aguja</h3>
+        <h3>Control</h3>
         <ul>
-          <li>Arrastra o toca en el semicírculo para colocar la aguja.</li>
+          <li>Arrastra/toca la aguja o el arco superior para colocarla.</li>
           <li>Teclado: <b>←/→</b> (±1) y <b>Shift</b> + ←/→ (±5).</li>
         </ul>
       </div>
@@ -605,6 +593,12 @@
       const DEFAULT_GOAL = 10;
       const START_SCORES = [0, 0];
       const WEDGES = { w4: 3, w3: 6, w2: 10 };
+
+      // Dial geometry (SVG 400x250, center at 200,200)
+      const HUB_R = 58;          // red center circle radius
+      const NEEDLE_INNER = 64;   // start just outside the hub
+      const NEEDLE_OUTER = 154;  // go near the rim so it's always visible (incl. 50)
+      const NEEDLE_OUTER_HI = 148;
 
       const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
       const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -688,11 +682,11 @@
         ].join(" ");
       }
 
-      function needleLine(value, r1, r2){
+      function needleLine(value, rInner, rOuter){
         const cx=200, cy=200;
         const rad = valueToRad(value);
-        const p1 = polarPoint(cx, cy, r1, rad);
-        const p2 = polarPoint(cx, cy, r2, rad);
+        const p1 = polarPoint(cx, cy, rInner, rad);
+        const p2 = polarPoint(cx, cy, rOuter, rad);
         return { x1:p1.x, y1:p1.y, x2:p2.x, y2:p2.y };
       }
 
@@ -740,10 +734,10 @@
         const t = target ?? 50;
         const g = guess ?? 50;
         const halfDisc = `M 40 200 A 160 160 0 0 1 360 200 L 200 200 Z`;
-        const n1 = needleLine(g, 200, 52);
-        const n2 = needleLine(g, 200, 58);
 
-        // "hit" path: slightly inside the arc to feel natural
+        const nMain = needleLine(g, NEEDLE_INNER, NEEDLE_OUTER);
+        const nHi   = needleLine(g, NEEDLE_INNER+2, NEEDLE_OUTER_HI);
+
         const hitArc = `M 54 200 A 146 146 0 0 1 346 200`;
 
         return `
@@ -779,23 +773,27 @@
                 ${
                   showGuess ? `
                     <g filter="url(#softShadow)">
-                      <line id="${interactive ? "needleMain" : ""}" x1="${n1.x1.toFixed(2)}" y1="${n1.y1.toFixed(2)}" x2="${n1.x2.toFixed(2)}" y2="${n1.y2.toFixed(2)}"
-                            stroke="var(--dialNeedle)" stroke-width="7" stroke-linecap="round" opacity="0.95"></line>
-                      <line id="${interactive ? "needleHi" : ""}" x1="${n2.x1.toFixed(2)}" y1="${n2.y1.toFixed(2)}" x2="${n2.x2.toFixed(2)}" y2="${n2.y2.toFixed(2)}"
+                      <line id="${interactive ? "needleMain" : ""}" x1="${nMain.x1.toFixed(2)}" y1="${nMain.y1.toFixed(2)}" x2="${nMain.x2.toFixed(2)}" y2="${nMain.y2.toFixed(2)}"
+                            stroke="var(--dialNeedle)" stroke-width="7" stroke-linecap="round" opacity="0.96"></line>
+                      <line id="${interactive ? "needleHi" : ""}" x1="${nHi.x1.toFixed(2)}" y1="${nHi.y1.toFixed(2)}" x2="${nHi.x2.toFixed(2)}" y2="${nHi.y2.toFixed(2)}"
                             stroke="var(--dialNeedle2)" stroke-width="3" stroke-linecap="round" opacity="0.55"></line>
+                      ${interactive ? `
+                        <line id="needleHit" x1="${nMain.x1.toFixed(2)}" y1="${nMain.y1.toFixed(2)}" x2="${nMain.x2.toFixed(2)}" y2="${nMain.y2.toFixed(2)}"
+                              stroke="transparent" stroke-width="26" stroke-linecap="round" style="pointer-events:stroke;"></line>
+                      ` : ``}
                     </g>
                   ` : ""
                 }
 
                 <g filter="url(#softShadow)">
-                  <circle cx="200" cy="200" r="58" fill="var(--dialCenter)"></circle>
-                  <circle cx="200" cy="200" r="58" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="2"></circle>
+                  <circle cx="200" cy="200" r="${HUB_R}" fill="var(--dialCenter)"></circle>
+                  <circle cx="200" cy="200" r="${HUB_R}" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="2"></circle>
                   <circle cx="200" cy="200" r="20" fill="rgba(255,255,255,.12)"></circle>
                 </g>
 
                 ${
                   interactive ? `
-                    <path id="dialHit" d="${hitArc}" fill="none" stroke="transparent" stroke-width="28" stroke-linecap="round"></path>
+                    <path id="dialHit" d="${hitArc}" fill="none" stroke="transparent" stroke-width="28" stroke-linecap="round" style="pointer-events:stroke;"></path>
                     <path d="${hitArc}" fill="none" stroke="rgba(0,0,0,.06)" stroke-width="2" stroke-linecap="round"></path>
                   ` : ""
                 }
@@ -992,7 +990,7 @@
         const truth = leftRightBet(store.target, store.guess);
         if (store.opponentBet){
           betOk = (truth === "EITHER") ? true : (store.opponentBet === truth);
-          if (betOk) stealPts = 1; // always
+          if (betOk) stealPts = 1;
         }
 
         store.teams[t].score += teamPoints;
@@ -1035,18 +1033,20 @@
         queuePass("Cambiar de equipo", `Turno para ${store.teams[o].name}. Solo su Psíquico debe mirar el objetivo en la fase Psíquico.`);
       }
 
-      // ---- Interactive needle handling (no slider) ----
+      // Interactive needle (drag)
       function attachInteractiveDialHandlers(){
         if (store.state !== STATES.TEAM_GUESS) return;
 
         const dial = els.main.querySelector('.dial[data-dial="interactive"]');
         if (!dial) return;
+
         const svg = dial.querySelector("svg");
-        const hit = dial.querySelector("#dialHit");
+        const hitArc = dial.querySelector("#dialHit");
         const needleMain = dial.querySelector("#needleMain");
         const needleHi = dial.querySelector("#needleHi");
+        const needleHit = dial.querySelector("#needleHit");
 
-        if (!svg || !hit || !needleMain || !needleHi) return;
+        if (!svg || !hitArc || !needleMain || !needleHi || !needleHit) return;
 
         let dragging = false;
 
@@ -1054,26 +1054,29 @@
           const v = clamp(value, 0, 100);
           if (commit) store.guess = v;
 
-          const n1 = needleLine(v, 200, 52);
-          const n2 = needleLine(v, 200, 58);
+          const nMain = needleLine(v, NEEDLE_INNER, NEEDLE_OUTER);
+          const nHi   = needleLine(v, NEEDLE_INNER+2, NEEDLE_OUTER_HI);
 
-          needleMain.setAttribute("x1", n1.x1.toFixed(2));
-          needleMain.setAttribute("y1", n1.y1.toFixed(2));
-          needleMain.setAttribute("x2", n1.x2.toFixed(2));
-          needleMain.setAttribute("y2", n1.y2.toFixed(2));
+          const setLine = (line, a) => {
+            line.setAttribute("x1", a.x1.toFixed(2));
+            line.setAttribute("y1", a.y1.toFixed(2));
+            line.setAttribute("x2", a.x2.toFixed(2));
+            line.setAttribute("y2", a.y2.toFixed(2));
+          };
 
-          needleHi.setAttribute("x1", n2.x1.toFixed(2));
-          needleHi.setAttribute("y1", n2.y1.toFixed(2));
-          needleHi.setAttribute("x2", n2.x2.toFixed(2));
-          needleHi.setAttribute("y2", n2.y2.toFixed(2));
+          setLine(needleMain, nMain);
+          setLine(needleHi, nHi);
+          setLine(needleHit, nMain);
 
           dial.setAttribute("aria-valuenow", String(v));
 
-          // Also update the small mid label without rerendering
           const mid = dial.querySelector(".dialLabels .mid");
           if (mid) mid.textContent = `Pos: ${v}`;
           const posPill = els.main.querySelector("#posPill");
           if (posPill) posPill.textContent = String(v);
+
+          const sr = els.main.querySelector("#srRange");
+          if (sr) sr.value = String(v);
         };
 
         const pointerToValue = (clientX, clientY) => {
@@ -1082,37 +1085,41 @@
           const y = ((clientY - rect.top) / rect.height) * 250;
 
           const cx = 200, cy = 200;
-          const rad = Math.atan2((cy - y), (x - cx)); // [-pi, pi]
-          const clamped = clamp(rad, 0, Math.PI);      // only semicircle (top)
+          const raw = Math.atan2((cy - y), (x - cx));  // [-pi,pi], where pi/2 is up
+          const clamped = clamp(raw, 0, Math.PI);      // keep within semicircle
           return radToValue(clamped);
         };
 
-        const onDown = (e) => {
+        const beginDrag = (e) => {
           dragging = true;
           dial.focus({ preventScroll:true });
           const v = pointerToValue(e.clientX, e.clientY);
           updateNeedle(v, true);
-          try{ hit.setPointerCapture(e.pointerId); } catch {}
+          try{ e.target.setPointerCapture(e.pointerId); } catch {}
           e.preventDefault();
         };
-        const onMove = (e) => {
+
+        const moveDrag = (e) => {
           if (!dragging) return;
           const v = pointerToValue(e.clientX, e.clientY);
           updateNeedle(v, true);
           e.preventDefault();
         };
-        const onUp = (e) => {
+
+        const endDrag = (e) => {
           dragging = false;
-          try{ hit.releasePointerCapture(e.pointerId); } catch {}
+          try{ e.target.releasePointerCapture(e.pointerId); } catch {}
           e.preventDefault();
         };
 
-        hit.addEventListener("pointerdown", onDown, { passive:false });
-        hit.addEventListener("pointermove", onMove, { passive:false });
-        hit.addEventListener("pointerup", onUp, { passive:false });
-        hit.addEventListener("pointercancel", onUp, { passive:false });
+        // Allow dragging from arc or from the needle itself
+        for (const el of [hitArc, needleHit, needleMain]) {
+          el.addEventListener("pointerdown", beginDrag, { passive:false });
+          el.addEventListener("pointermove", moveDrag, { passive:false });
+          el.addEventListener("pointerup", endDrag, { passive:false });
+          el.addEventListener("pointercancel", endDrag, { passive:false });
+        }
 
-        // Keyboard accessibility
         dial.addEventListener("keydown", (e) => {
           const step = e.shiftKey ? 5 : 1;
           if (e.key === "ArrowLeft"){
@@ -1130,7 +1137,7 @@
           }
         });
 
-        // Make sure initial UI matches store
+        // Ensure needle is visible at 50 (and any value) immediately
         updateNeedle(store.guess, false);
       }
 
@@ -1253,7 +1260,7 @@
           els.main.innerHTML = `
             <div class="col" style="gap:14px;">
               <div class="notice"><b>Solo el Psíquico</b>. No uses números. Da una pista para orientar la aguja.</div>
-              ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:true, target: store.target, showGuess:false, guess: store.guess })}
+              ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:true, target: store.target, showGuess:false })}
               <div class="row">
                 <div class="grow">
                   <label for="inpClue2">Pista (opcional, para registrarla)</label>
@@ -1285,11 +1292,11 @@
         }
 
         if (store.state === STATES.TEAM_GUESS){
-          setPhase("Equipo (mover aguja)", `${store.teams[t].name}: mueve la aguja directamente en el dial y bloquea.`);
+          setPhase("Equipo (mover aguja)", `${store.teams[t].name}: mueve la aguja en el dial y bloquea.`);
           els.main.innerHTML = `
             <div class="col" style="gap:12px;">
               <div class="notice">
-                Objetivo oculto. <b>Toca/arrastra</b> sobre el semicírculo para colocar la aguja.
+                Objetivo oculto. <b>Arrastra la aguja</b> (o toca el arco superior) para elegir la posición.
               </div>
 
               ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:false, showGuess:true, guess: store.guess, interactive:true })}
@@ -1299,7 +1306,6 @@
                 <span>Teclado: <span class="kbd">←/→</span> (±1) · <span class="kbd">Shift</span>+<span class="kbd">←/→</span> (±5)</span>
               </div>
 
-              <!-- Hidden input for screen readers (optional fallback) -->
               <label class="srOnly" for="srRange">Posición 0 a 100</label>
               <input class="srOnly" id="srRange" type="range" min="0" max="100" value="${store.guess}" />
 
@@ -1312,11 +1318,10 @@
 
           attachInteractiveDialHandlers();
 
-          // Keep sr range in sync if used
           const sr = $("#srRange");
           sr.addEventListener("input", () => {
             store.guess = clamp(parseInt(sr.value,10), 0, 100);
-            render(); // re-render is OK here because it's only an accessibility fallback
+            render();
             store.state = STATES.TEAM_GUESS;
           });
 
@@ -1524,7 +1529,7 @@
         if (leftRightBet(40,60)!=="LEFT") throw new Error("SelfTest fail LEFT");
         if (leftRightBet(80,60)!=="RIGHT") throw new Error("SelfTest fail RIGHT");
         if (leftRightBet(60,60)!=="EITHER") throw new Error("SelfTest fail EITHER");
-        // rad/value roundtrip sanity
+
         for (let v of [0,10,25,50,75,90,100]){
           const back = radToValue(valueToRad(v));
           if (Math.abs(back - v) > 1) throw new Error("SelfTest fail rad/value");
