@@ -4,10 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
-  <title>Wavelength — 2 jugadores</title>
+  <title>Wavelength — Equipos</title>
   <style>
     :root{
-      --bg: #0b0f17;
+      --bg:#0b0f17;
       --panel: rgba(255,255,255,.07);
       --line: rgba(255,255,255,.14);
       --text: rgba(255,255,255,.92);
@@ -18,18 +18,17 @@
       --focus: 2px solid rgba(120,200,255,.9);
       --anim: 180ms cubic-bezier(.2,.8,.2,1);
 
-      --p1: #7dd3fc;
-      --p2: #a78bfa;
+      --a: #7dd3fc;
+      --b: #a78bfa;
 
-      /* Dial physical-ish */
-      --dialFace: #efe9dc;      /* beige */
+      --dialFace: #efe9dc;
       --dialFaceEdge: rgba(0,0,0,.08);
-      --dialWindow2: #ffb44d;   /* 2 pts */
-      --dialWindow3: #ff7a3c;   /* 3 pts */
-      --dialWindow4: #6bb6ff;   /* 4 pts */
-      --dialNeedle: #cf3b3b;    /* red */
+      --dialWindow2: #ffb44d;
+      --dialWindow3: #ff7a3c;
+      --dialWindow4: #6bb6ff;
+      --dialNeedle: #cf3b3b;
       --dialNeedle2: rgba(255,255,255,.55);
-      --dialCenter: #c73737;    /* red knob */
+      --dialCenter: #c73737;
       --dialTextDark: rgba(0,0,0,.78);
     }
 
@@ -51,19 +50,19 @@
       margin:0;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
       background:
-        radial-gradient(900px 650px at 20% -10%, rgba(125,211,252,.25), transparent 60%),
-        radial-gradient(900px 650px at 90% -10%, rgba(167,139,250,.22), transparent 60%),
+        radial-gradient(900px 650px at 18% -10%, rgba(125,211,252,.25), transparent 60%),
+        radial-gradient(900px 650px at 88% -10%, rgba(167,139,250,.22), transparent 60%),
         radial-gradient(800px 600px at 50% 110%, rgba(52,211,153,.14), transparent 65%),
         var(--bg);
       color: var(--text);
       line-height:1.35;
     }
 
-    .wrap{ max-width: 1100px; margin: 0 auto; padding: 16px 14px 32px; }
+    .wrap{ max-width: 1180px; margin: 0 auto; padding: 16px 14px 32px; }
 
     header{
       display:flex; align-items:center; justify-content: space-between;
-      gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
+      gap:10px; flex-wrap: wrap; margin-bottom: 14px;
     }
     .brand{ display:flex; align-items:center; gap:10px; }
     .logo{
@@ -102,6 +101,10 @@
       border-color: rgba(125,211,252,.55);
       background: linear-gradient(180deg, rgba(125,211,252,.20), rgba(255,255,255,.06));
     }
+    .btn.alt{
+      border-color: rgba(167,139,250,.55);
+      background: linear-gradient(180deg, rgba(167,139,250,.18), rgba(255,255,255,.06));
+    }
     .btn.ghost{ background: transparent; box-shadow:none; }
     .btn.danger{
       border-color: rgba(251,113,133,.55);
@@ -115,7 +118,7 @@
       gap: 14px;
       align-items:start;
     }
-    @media (max-width: 920px){ .grid{ grid-template-columns: 1fr; } }
+    @media (max-width: 980px){ .grid{ grid-template-columns: 1fr; } }
 
     .card{
       border:1px solid var(--line);
@@ -133,7 +136,7 @@
       border-bottom:1px solid var(--line);
       background: linear-gradient(180deg, rgba(255,255,255,.06), transparent);
     }
-    .title{ display:flex; flex-direction:column; gap:3px; min-width: 0; }
+    .title{ display:flex; flex-direction:column; gap:3px; min-width:0; }
     .title b{ font-size:14px; letter-spacing:.2px; }
     .title span{ font-size:12px; color: var(--muted); }
     .card .bd{ padding: 14px; }
@@ -181,11 +184,11 @@
       border-color: rgba(125,211,252,.55);
       background: rgba(255,255,255,.07);
     }
-
     .hr{ height:1px; background: var(--line); margin: 10px 0; }
 
     .dial{
-      width: min(100%, 560px);
+      width: min(100%, 620px);
+      margin: 0 auto;
       border-radius: 22px;
       border: 1px solid var(--line);
       background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
@@ -201,12 +204,39 @@
       pointer-events:none;
       background:
         radial-gradient(700px 260px at 50% 110%, rgba(255,255,255,.08), transparent 60%),
-        radial-gradient(320px 240px at 12% 0%, rgba(125,211,252,.08), transparent 65%),
-        radial-gradient(340px 260px at 88% 0%, rgba(167,139,250,.08), transparent 65%);
+        radial-gradient(340px 260px at 12% 0%, rgba(125,211,252,.08), transparent 65%),
+        radial-gradient(360px 280px at 88% 0%, rgba(167,139,250,.08), transparent 65%);
       opacity:.9;
     }
     .dialInner{ position: relative; z-index: 1; }
     .dialSvg{ width: 100%; height: auto; display:block; }
+
+    .dial.isInteractive{
+      outline: none;
+    }
+    .dial.isInteractive:focus-visible{
+      outline: var(--focus);
+      outline-offset: 3px;
+      border-radius: 24px;
+    }
+    .dialHelp{
+      width: min(100%, 620px);
+      margin: 0 auto;
+      font-size: 12px;
+      color: var(--muted);
+      display:flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .kbd{
+      font-variant-numeric: tabular-nums;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.04);
+      padding: 2px 8px;
+      border-radius: 999px;
+      color: var(--muted);
+    }
 
     .dialLabels{
       display:flex;
@@ -250,21 +280,7 @@
     .sw.w3{ background: var(--dialWindow3); }
     .sw.w4{ background: var(--dialWindow4); }
 
-    .sliderRow{
-      width: min(100%, 560px);
-      display:flex;
-      flex-direction: column;
-      gap: 8px;
-      margin: 0 auto;
-    }
-    input[type="range"]{ width:100%; accent-color: #7dd3fc; }
-    .numRow{
-      display:flex; justify-content: space-between; align-items:center;
-      font-size: 12px; color: var(--muted);
-    }
-    .numRow b{ color: var(--text); font-weight: 900; }
-
-    .playerBox{
+    .teamBox{
       border-radius: 18px;
       border: 1px solid var(--line);
       background: rgba(255,255,255,.04);
@@ -273,22 +289,40 @@
       flex-direction: column;
       gap: 8px;
     }
-    .playerTop{
+    .teamTop{
       display:flex;
       align-items:center;
       justify-content: space-between;
       gap: 10px;
     }
     .nameRow{ display:flex; align-items:center; gap:10px; min-width:0; }
-    .dot{ width:10px; height:10px; border-radius:50%; background: var(--p1); }
-    .dot.p2{ background: var(--p2); }
-    .pname{ font-size: 13px; font-weight: 900; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
-    .pscore{ font-size: 24px; font-weight: 950; letter-spacing:.2px; }
-    .role{
+    .dot{ width:10px; height:10px; border-radius:50%; background: var(--a); }
+    .dot.b{ background: var(--b); }
+    .tname{ font-size: 13px; font-weight: 900; white-space: nowrap; overflow:hidden; text-overflow: ellipsis; }
+    .tscore{ font-size: 24px; font-weight: 950; letter-spacing:.2px; }
+    .meta{
       font-size: 12px; color: var(--muted);
       display:flex; justify-content: space-between; align-items:center; gap: 10px;
     }
-    .role b{ color: var(--text); }
+    .meta b{ color: var(--text); }
+    .meta .ps{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+
+    .history{
+      display:flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .hitem{
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.03);
+      padding: 10px 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .hitem b{ color: var(--text); }
+    .hrow{ display:flex; justify-content: space-between; gap:10px; flex-wrap:wrap; }
+    .mono{ font-variant-numeric: tabular-nums; }
 
     .modalBackdrop{
       position:fixed; inset:0;
@@ -301,8 +335,8 @@
     }
     .modalBackdrop.show{ display:flex; }
     .modal{
-      width:min(820px, 100%);
-      max-height: min(86vh, 720px);
+      width:min(880px, 100%);
+      max-height: min(86vh, 780px);
       overflow:auto;
       border-radius: 22px;
       border:1px solid var(--line);
@@ -329,7 +363,7 @@
       position: fixed;
       left:50%; bottom:18px;
       transform: translateX(-50%);
-      max-width: min(760px, calc(100% - 24px));
+      max-width: min(820px, calc(100% - 24px));
       padding: 10px 12px;
       border-radius: 14px;
       border:1px solid var(--line);
@@ -350,19 +384,65 @@
       to{ transform: translateX(-50%) translateY(0); opacity:1; }
     }
 
+    .passOverlay{
+      position: fixed; inset:0;
+      z-index: 90;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+      background:
+        radial-gradient(1000px 700px at 20% 0%, rgba(125,211,252,.24), transparent 62%),
+        radial-gradient(1000px 700px at 90% 0%, rgba(167,139,250,.22), transparent 62%),
+        rgba(0,0,0,.64);
+      backdrop-filter: blur(10px);
+    }
+    .passOverlay.show{ display:flex; }
+    .passCard{
+      width: min(720px, 100%);
+      border-radius: 26px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.06));
+      box-shadow: var(--shadow2);
+      padding: 16px;
+    }
+    .passCard h2{
+      margin:0;
+      font-size: 18px;
+      letter-spacing:.2px;
+    }
+    .passCard p{
+      margin: 8px 0 0;
+      color: rgba(255,255,255,.78);
+      font-size: 13px;
+    }
+    .passCard .row{ margin-top: 14px; justify-content: space-between; }
+    .passCard .big{
+      font-size: 13px;
+      color: rgba(255,255,255,.85);
+    }
+
+    .srOnly{
+      position:absolute !important;
+      width:1px;height:1px;
+      padding:0;margin:-1px;
+      overflow:hidden;clip:rect(0,0,0,0);
+      white-space:nowrap;border:0;
+    }
+
     @media (prefers-reduced-motion: reduce){
       *{ transition:none !important; animation:none !important; }
     }
   </style>
 </head>
 <body>
-  <div class="wrap" role="application" aria-label="Wavelength para dos jugadores">
+  <div class="wrap" role="application" aria-label="Wavelength por equipos">
     <header>
       <div class="brand">
         <div class="logo" aria-hidden="true"></div>
         <div>
           <h1>Wavelength</h1>
-          <p>2 jugadores — sin modos, listo para jugar.</p>
+          <p>Equipos (A/B) — apuesta rival LEFT/RIGHT para robar puntos.</p>
         </div>
       </div>
       <div class="top-actions">
@@ -399,31 +479,31 @@
         </div>
         <div class="bd">
           <div class="col">
-            <div class="playerBox">
-              <div class="playerTop">
+            <div class="teamBox">
+              <div class="teamTop">
                 <div class="nameRow">
                   <span class="dot" aria-hidden="true"></span>
-                  <div class="pname" id="p1Name">Jugador 1</div>
+                  <div class="tname" id="aName">Equipo A</div>
                 </div>
-                <div class="pscore" id="p1Score">0</div>
+                <div class="tscore mono" id="aScore">0</div>
               </div>
-              <div class="role">
-                <span>Rol: <b id="p1Role">—</b></span>
-                <span class="pill"><strong>ID:</strong> 1</span>
+              <div class="meta">
+                <span class="ps">Psíquico: <b id="aPsychic">1</b> <button class="btn small" id="btnNextPA">Siguiente Psíquico</button></span>
+                <span class="pill"><strong>Turnos:</strong> <span id="aTurns">0</span></span>
               </div>
             </div>
 
-            <div class="playerBox">
-              <div class="playerTop">
+            <div class="teamBox">
+              <div class="teamTop">
                 <div class="nameRow">
-                  <span class="dot p2" aria-hidden="true"></span>
-                  <div class="pname" id="p2Name">Jugador 2</div>
+                  <span class="dot b" aria-hidden="true"></span>
+                  <div class="tname" id="bName">Equipo B</div>
                 </div>
-                <div class="pscore" id="p2Score">0</div>
+                <div class="tscore mono" id="bScore">0</div>
               </div>
-              <div class="role">
-                <span>Rol: <b id="p2Role">—</b></span>
-                <span class="pill"><strong>ID:</strong> 2</span>
+              <div class="meta">
+                <span class="ps">Psíquico: <b id="bPsychic">1</b> <button class="btn small" id="btnNextPB">Siguiente Psíquico</button></span>
+                <span class="pill"><strong>Turnos:</strong> <span id="bTurns">0</span></span>
               </div>
             </div>
 
@@ -436,8 +516,16 @@
             </div>
 
             <div class="notice">
-              Ventana de puntuación reducida a la mitad (rangos y visual).
+              Rival roba <b>+1</b> si acierta LEFT/RIGHT, <b>siempre</b>.
             </div>
+
+            <div class="hr"></div>
+
+            <div class="title" style="padding:0 2px;">
+              <b>Historial (últimas 5)</b>
+              <span>carta · objetivo · posición · puntos · robo</span>
+            </div>
+            <div class="history" id="hist"></div>
           </div>
         </div>
       </aside>
@@ -447,24 +535,23 @@
   <div class="modalBackdrop" id="modalRules" role="dialog" aria-modal="true" aria-labelledby="modalRulesTitle">
     <div class="modal">
       <div class="mhd">
-        <b id="modalRulesTitle">Instrucciones (2 jugadores)</b>
+        <b id="modalRulesTitle">Reglas — Equipos A/B</b>
         <button class="btn small" id="btnCloseRules">Cerrar</button>
       </div>
       <div class="mbd">
         <h3>Flujo</h3>
         <ul>
-          <li><b>Nueva ronda:</b> carta (dos extremos) + pista opcional.</li>
-          <li><b>Psíquico:</b> un jugador ve el objetivo (0–100) y dice una pista.</li>
-          <li><b>Adivinar:</b> el otro jugador mueve el dial (0–100) y bloquea.</li>
-          <li><b>Revelación:</b> se muestra el objetivo y se puntúa. Luego se intercambian roles.</li>
+          <li>Carta → Psíquico (secreto) → Equipo (mueve aguja) → Rival (LEFT/RIGHT) → Revelación.</li>
         </ul>
-
         <h3>Puntuación</h3>
         <ul>
-          <li>±3: <b>4 puntos</b></li>
-          <li>±6: <b>3 puntos</b></li>
-          <li>±10: <b>2 puntos</b></li>
-          <li>Fuera: <b>0 puntos</b></li>
+          <li>±3: <b>4</b>, ±6: <b>3</b>, ±10: <b>2</b>, fuera: <b>0</b>.</li>
+          <li>Rival: <b>+1</b> si acierta LEFT/RIGHT, <b>siempre</b>.</li>
+        </ul>
+        <h3>Control de aguja</h3>
+        <ul>
+          <li>Arrastra o toca en el semicírculo para colocar la aguja.</li>
+          <li>Teclado: <b>←/→</b> (±1) y <b>Shift</b> + ←/→ (±5).</li>
         </ul>
       </div>
     </div>
@@ -472,229 +559,108 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <div class="passOverlay" id="passOverlay" role="dialog" aria-modal="true" aria-label="Pasar dispositivo">
+    <div class="passCard">
+      <h2 id="passTitle">Pasar dispositivo</h2>
+      <p id="passText">—</p>
+      <div class="row">
+        <div class="big">Asegúrate de que solo mire quien toca.</div>
+        <button class="btn primary" id="btnPassContinue">Continuar</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     (() => {
       "use strict";
 
       const CARDS = [
-        { left:"Frío", right:"Caliente" },
-        { left:"Aburrido", right:"Emocionante" },
-        { left:"Inofensivo", right:"Peligroso" },
-        { left:"Común", right:"Raro" },
-        { left:"Débil", right:"Fuerte" },
-        { left:"Simple", right:"Complejo" },
-        { left:"Tradicional", right:"Innovador" },
-        { left:"Caro", right:"Barato" },
-        { left:"Serio", right:"Cómico" },
-        { left:"Ordenado", right:"Caótico" },
-        { left:"Egoísta", right:"Altruista" },
-        { left:"Lento", right:"Rápido" },
-        { left:"Seguro", right:"Arriesgado" },
-        { left:"Formal", right:"Informal" },
-        { left:"Amigable", right:"Hostil" },
-        { left:"Sutil", right:"Exagerado" },
-        { left:"Fácil", right:"Difícil" },
-        { left:"De mal gusto", right:"Elegante" },
-        { left:"Relajante", right:"Estresante" },
-        { left:"Predecible", right:"Impredecible" },
-        { left:"Infantil", right:"Adulto" },
-        { left:"Moderno", right:"Retro" },
-        { left:"Realista", right:"Fantástico" },
-        { left:"Optimista", right:"Pesimista" },
-        { left:"Honesto", right:"Engañoso" },
-        { left:"Conservador", right:"Rebelde" },
-        { left:"Silencioso", right:"Ruidoso" },
-        { left:"Íntimo", right:"Público" },
-        { left:"Casual", right:"Solemne" },
-        { left:"Suave", right:"Brusco" },
-        { left:"Delicado", right:"Robusto" },
-        { left:"Abstracto", right:"Concreto" },
-        { left:"Limpio", right:"Sucio" },
-        { left:"Natural", right:"Artificial" },
-        { left:"Agradable", right:"Desagradable" },
-        { left:"Racional", right:"Emocional" },
-        { left:"Amable", right:"Cruel" },
-        { left:"Flexible", right:"Rígido" },
-        { left:"Minimalista", right:"Recargado" },
-        { left:"Local", right:"Global" },
-        { left:"Clásico", right:"Vanguardista" },
-        { left:"Tierno", right:"Intimidante" },
-        { left:"Práctico", right:"Impráctico" },
-        { left:"Popular", right:"De nicho" },
-        { left:"Cotidiano", right:"Épico" },
-        { left:"Atemporal", right:"De moda" },
-        { left:"Aire libre", right:"Interior" },
-        { left:"Individual", right:"En equipo" },
-        { left:"Aventurero", right:"Cauteloso" },
-        { left:"Directo", right:"Ambiguo" },
-        { left:"Atractivo", right:"Repulsivo" },
-        { left:"Futurista", right:"Antiguo" },
-        { left:"Eficiente", right:"Ineficiente" },
-        { left:"Duro", right:"Blando" },
-        { left:"Sincero", right:"Diplomático" },
-        { left:"Exclusivo", right:"Inclusivo" },
-        { left:"Intenso", right:"Ligero" },
-        { left:"Frágil", right:"Resistente" },
-        { left:"Estable", right:"Volátil" },
-        { left:"Metódico", right:"Impulsivo" },
-        { left:"Sano", right:"Indulgente" },
-        { left:"Lógico", right:"Intuitivo" },
-        { left:"Pulido", right:"Desaliñado" },
-        { left:"Cercano", right:"Distante" },
-        { left:"Profesional", right:"Amateur" },
-        { left:"Humilde", right:"Presumido" },
-        { left:"Confiable", right:"Inestable" },
-        { left:"Científico", right:"Místico" },
-        { left:"Transparente", right:"Opaco" },
-        { left:"Carismático", right:"Insulso" },
-        { left:"Valiente", right:"Cobarde" },
-        { left:"Curioso", right:"Indiferente" },
+        { left:"Frío", right:"Caliente" },{ left:"Aburrido", right:"Emocionante" },{ left:"Inofensivo", right:"Peligroso" },
+        { left:"Común", right:"Raro" },{ left:"Débil", right:"Fuerte" },{ left:"Simple", right:"Complejo" },
+        { left:"Tradicional", right:"Innovador" },{ left:"Caro", right:"Barato" },{ left:"Serio", right:"Cómico" },
+        { left:"Ordenado", right:"Caótico" },{ left:"Egoísta", right:"Altruista" },{ left:"Lento", right:"Rápido" },
+        { left:"Seguro", right:"Arriesgado" },{ left:"Formal", right:"Informal" },{ left:"Amigable", right:"Hostil" },
+        { left:"Sutil", right:"Exagerado" },{ left:"Fácil", right:"Difícil" },{ left:"De mal gusto", right:"Elegante" },
+        { left:"Relajante", right:"Estresante" },{ left:"Predecible", right:"Impredecible" },{ left:"Infantil", right:"Adulto" },
+        { left:"Moderno", right:"Retro" },{ left:"Realista", right:"Fantástico" },{ left:"Optimista", right:"Pesimista" },
+        { left:"Honesto", right:"Engañoso" },{ left:"Conservador", right:"Rebelde" },{ left:"Silencioso", right:"Ruidoso" },
+        { left:"Íntimo", right:"Público" },{ left:"Casual", right:"Solemne" },{ left:"Suave", right:"Brusco" },
+        { left:"Delicado", right:"Robusto" },{ left:"Abstracto", right:"Concreto" },{ left:"Limpio", right:"Sucio" },
+        { left:"Natural", right:"Artificial" },{ left:"Agradable", right:"Desagradable" },{ left:"Racional", right:"Emocional" },
+        { left:"Amable", right:"Cruel" },{ left:"Flexible", right:"Rígido" },{ left:"Minimalista", right:"Recargado" },
+        { left:"Local", right:"Global" },{ left:"Clásico", right:"Vanguardista" },{ left:"Tierno", right:"Intimidante" },
+        { left:"Práctico", right:"Impráctico" },{ left:"Popular", right:"De nicho" },{ left:"Cotidiano", right:"Épico" },
+        { left:"Atemporal", right:"De moda" },{ left:"Aire libre", right:"Interior" },{ left:"Individual", right:"En equipo" },
+        { left:"Aventurero", right:"Cauteloso" },{ left:"Directo", right:"Ambiguo" },{ left:"Atractivo", right:"Repulsivo" },
+        { left:"Futurista", right:"Antiguo" },{ left:"Eficiente", right:"Ineficiente" },{ left:"Duro", right:"Blando" },
+        { left:"Sincero", right:"Diplomático" },{ left:"Exclusivo", right:"Inclusivo" },{ left:"Intenso", right:"Ligero" },
+        { left:"Frágil", right:"Resistente" },{ left:"Estable", right:"Volátil" },{ left:"Metódico", right:"Impulsivo" },
+        { left:"Sano", right:"Indulgente" },{ left:"Lógico", right:"Intuitivo" },{ left:"Pulido", right:"Desaliñado" },
+        { left:"Cercano", right:"Distante" },{ left:"Profesional", right:"Amateur" },{ left:"Humilde", right:"Presumido" },
+        { left:"Confiable", right:"Inestable" },{ left:"Científico", right:"Místico" },{ left:"Transparente", right:"Opaco" },
+        { left:"Carismático", right:"Insulso" },{ left:"Valiente", right:"Cobarde" },{ left:"Curioso", right:"Indiferente" },
         { left:"Creativo", right:"Convencional" },
       ];
 
-      const GOAL = 10;
-
-      // ✅ Reduced to half (coherent scoring + visuals)
+      const DEFAULT_GOAL = 10;
+      const START_SCORES = [0, 0];
       const WEDGES = { w4: 3, w3: 6, w2: 10 };
 
       const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
       const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+      const $ = (sel, root=document) => root.querySelector(sel);
+
+      function escapeHtml(s){
+        return String(s).replace(/[&<>"']/g, m => ({
+          "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+        }[m]));
+      }
 
       function valueToRad(v){
         const x = clamp(v,0,100)/100;
         return Math.PI * (1 - x);
+      }
+      function radToValue(rad){
+        const r = clamp(rad, 0, Math.PI);
+        const x = 1 - (r / Math.PI);
+        return clamp(Math.round(x * 100), 0, 100);
       }
 
       function randomTarget(){ return rnd(0, 100); }
 
       function scoreGuess(target, guess){
         const d = Math.abs(clamp(target,0,100) - clamp(guess,0,100));
-        if (d <= WEDGES.w4) return { pts: 4, band: "CENTER" };
-        if (d <= WEDGES.w3) return { pts: 3, band: "NEAR" };
-        if (d <= WEDGES.w2) return { pts: 2, band: "FAR" };
-        return { pts: 0, band: "MISS" };
+        if (d <= WEDGES.w4) return { teamPoints: 4, wedge: "4" };
+        if (d <= WEDGES.w3) return { teamPoints: 3, wedge: "3" };
+        if (d <= WEDGES.w2) return { teamPoints: 2, wedge: "2" };
+        return { teamPoints: 0, wedge: "0" };
       }
 
-      const STATES = Object.freeze({
-        SETUP: "SETUP",
-        ROUND: "ROUND",
-        PSYCHIC: "PSYCHIC",
-        GUESS: "GUESS",
-        REVEAL: "REVEAL",
-        OVER: "OVER"
-      });
-
-      const $ = (sel, root=document) => root.querySelector(sel);
-
-      const els = {
-        main: $("#mainArea"),
-        phaseTitle: $("#phaseTitle"),
-        phaseSubtitle: $("#phaseSubtitle"),
-        pillTurn: $("#pillTurn"),
-        pillGoal: $("#pillGoal"),
-        scoreSubtitle: $("#scoreSubtitle"),
-
-        p1Name: $("#p1Name"),
-        p2Name: $("#p2Name"),
-        p1Score: $("#p1Score"),
-        p2Score: $("#p2Score"),
-        p1Role: $("#p1Role"),
-        p2Role: $("#p2Role"),
-
-        btnRules: $("#btnRules"),
-        modalRules: $("#modalRules"),
-        btnCloseRules: $("#btnCloseRules"),
-
-        btnFullscreen: $("#btnFullscreen"),
-        btnReset: $("#btnReset"),
-        btnPass: $("#btnPass"),
-        toast: $("#toast")
-      };
-
-      function showToast(msg, ms=2300){
-        els.toast.textContent = msg;
-        els.toast.classList.add("show");
-        clearTimeout(showToast._t);
-        showToast._t = setTimeout(() => els.toast.classList.remove("show"), ms);
+      function leftRightBet(target, guess){
+        if (target < guess) return "LEFT";
+        if (target > guess) return "RIGHT";
+        return "EITHER";
       }
 
-      function openModal(m){ m.classList.add("show"); m.querySelector("button")?.focus(); }
-      function closeModal(m){ m.classList.remove("show"); }
+      function applyCatchUpRule(scores, activeTeam, gainedPoints){
+        if (gainedPoints !== 4) return false;
+        return scores[activeTeam] < scores[1-activeTeam];
+      }
 
-      const store = {
-        state: STATES.SETUP,
-        goal: GOAL,
-        players: [
-          { name: "Jugador 1", score: 0 },
-          { name: "Jugador 2", score: 0 }
-        ],
-        psychicIndex: 0,
-        card: null,
-        clue: "",
-        target: null,
-        guess: 50,
-        scored: null,
-        deck: []
-      };
+      function isTieAtGoalOrAbove(scores, goal){
+        return scores[0] >= goal && scores[1] >= goal && scores[0] === scores[1];
+      }
 
-      function buildDeck(){
-        store.deck = Array.from({length: CARDS.length}, (_,i)=>i);
-        for (let i=store.deck.length-1;i>0;i--){
-          const j = Math.floor(Math.random()*(i+1));
-          [store.deck[i], store.deck[j]] = [store.deck[j], store.deck[i]];
+      function hasWinner(scores, goal){
+        if (scores[0] >= goal || scores[1] >= goal){
+          if (scores[0] !== scores[1]) return true;
         }
+        return false;
       }
 
-      function drawCard(){
-        if (store.deck.length === 0) buildDeck();
-        const idx = store.deck.pop();
-        return CARDS[idx];
-      }
-
-      function resetRound(){
-        store.card = drawCard();
-        store.clue = "";
-        store.target = null;
-        store.guess = 50;
-        store.scored = null;
-      }
-
-      function setPhase(title, subtitle){
-        els.phaseTitle.textContent = title;
-        els.phaseSubtitle.textContent = subtitle;
-      }
-
-      function renderSidebar(){
-        els.pillGoal.innerHTML = `<strong>Objetivo:</strong> ${store.goal}`;
-        const psychic = store.psychicIndex;
-
-        els.p1Name.textContent = store.players[0].name;
-        els.p2Name.textContent = store.players[1].name;
-        els.p1Score.textContent = store.players[0].score;
-        els.p2Score.textContent = store.players[1].score;
-
-        const roles = (store.state === STATES.SETUP || store.state === STATES.OVER)
-          ? ["—","—"]
-          : [
-              psychic === 0 ? "Psíquico" : "Adivina",
-              psychic === 1 ? "Psíquico" : "Adivina"
-            ];
-
-        els.p1Role.textContent = roles[0];
-        els.p2Role.textContent = roles[1];
-
-        const turnText = (store.state === STATES.SETUP || store.state === STATES.OVER)
-          ? "—"
-          : `${store.players[psychic].name} (Psíquico)`;
-        els.pillTurn.innerHTML = `<strong>Turno:</strong> ${turnText}`;
-
-        els.scoreSubtitle.textContent = `Primero a ${store.goal} puntos`;
-      }
-
-      function escapeHtml(s){
-        return String(s).replace(/[&<>"']/g, m => ({
-          "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-        }[m]));
+      function winnerIndex(scores){
+        if (scores[0] === scores[1]) return null;
+        return scores[0] > scores[1] ? 0 : 1;
       }
 
       function polarPoint(cx, cy, r, rad){
@@ -722,99 +688,66 @@
         ].join(" ");
       }
 
-      function needleLineSVG(value, r1, r2, stroke, strokeWidth, opacity=1){
+      function needleLine(value, r1, r2){
         const cx=200, cy=200;
         const rad = valueToRad(value);
         const p1 = polarPoint(cx, cy, r1, rad);
         const p2 = polarPoint(cx, cy, r2, rad);
-        return `<line x1="${p1.x.toFixed(2)}" y1="${p1.y.toFixed(2)}" x2="${p2.x.toFixed(2)}" y2="${p2.y.toFixed(2)}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" opacity="${opacity}"></line>`;
+        return { x1:p1.x, y1:p1.y, x2:p2.x, y2:p2.y };
       }
 
       function scoringFanSVG(targetVal){
-        const cx=200, cy=200;
-
         const radPerVal = Math.PI / 100;
-        const halfSpan = WEDGES.w2 * radPerVal; // now ±10
-
+        const halfSpan = WEDGES.w2 * radPerVal;
         const cRad = valueToRad(targetVal);
 
         let fanStart = cRad + halfSpan;
         let fanEnd   = cRad - halfSpan;
 
-        if (fanStart > Math.PI) {
-          const shift = fanStart - Math.PI;
-          fanStart = Math.PI;
-          fanEnd += shift;
-        }
-        if (fanEnd < 0) {
-          const shift = -fanEnd;
-          fanEnd = 0;
-          fanStart -= shift;
-        }
+        if (fanStart > Math.PI) { const shift = fanStart - Math.PI; fanStart = Math.PI; fanEnd += shift; }
+        if (fanEnd < 0) { const shift = -fanEnd; fanEnd = 0; fanStart -= shift; }
         fanStart = clamp(fanStart, 0, Math.PI);
         fanEnd   = clamp(fanEnd,   0, Math.PI);
 
-        const rOuter = 160;
-        const rInner = 85;
-
+        const rOuter = 160, rInner = 85;
         const totalSpan = Math.abs(fanStart - fanEnd);
-
         const weights = [1.15, 0.95, 1.05, 0.95, 1.15];
         const wsum = weights.reduce((a,b)=>a+b,0);
         const spans = weights.map(w => totalSpan*(w/wsum));
-
-        const colors = [
-          "var(--dialWindow2)",
-          "var(--dialWindow3)",
-          "var(--dialWindow4)",
-          "var(--dialWindow3)",
-          "var(--dialWindow2)"
-        ];
+        const colors = ["var(--dialWindow2)","var(--dialWindow3)","var(--dialWindow4)","var(--dialWindow3)","var(--dialWindow2)"];
         const labels = ["2","3","4","3","2"];
 
         let cur = fanStart;
         const parts = [];
-
         for (let i=0;i<5;i++){
           const next = cur - spans[i];
-          const s = cur;
-          const e = next;
-
-          const path = donutSectorPath(cx, cy, rOuter, rInner, s, e);
+          const s = cur, e = next;
+          const path = donutSectorPath(200, 200, rOuter, rInner, s, e);
           const mid = (s+e)/2;
-          const p = polarPoint(cx, cy, (rOuter+rInner)/2 + 2, mid);
-
+          const p = polarPoint(200, 200, (rOuter+rInner)/2 + 2, mid);
           parts.push(`
             <path d="${path}" fill="${colors[i]}" opacity="0.95"></path>
-            <text x="${p.x.toFixed(2)}" y="${p.y.toFixed(2)}"
-                  text-anchor="middle" dominant-baseline="middle"
-                  font-size="14" font-weight="900"
-                  fill="var(--dialTextDark)">
-              ${labels[i]}
-            </text>
+            <text x="${p.x.toFixed(2)}" y="${p.y.toFixed(2)}" text-anchor="middle" dominant-baseline="middle"
+                  font-size="14" font-weight="900" fill="var(--dialTextDark)">${labels[i]}</text>
           `);
-
           cur = next;
         }
-
-        const outline = donutSectorPath(cx, cy, rOuter, rInner, fanStart, fanEnd);
-
-        return `
-          <g>
-            <path d="${outline}" fill="rgba(0,0,0,.06)"></path>
-            ${parts.join("")}
-            <path d="${outline}" fill="none" stroke="rgba(0,0,0,.22)" stroke-width="1"></path>
-          </g>
-        `;
+        const outline = donutSectorPath(200, 200, rOuter, rInner, fanStart, fanEnd);
+        return `<g><path d="${outline}" fill="rgba(0,0,0,.06)"></path>${parts.join("")}<path d="${outline}" fill="none" stroke="rgba(0,0,0,.22)" stroke-width="1"></path></g>`;
       }
 
-      function dialHTML({ left, right, showTarget, target, showGuess, guess }){
+      function dialHTML({ left, right, showTarget, target, showGuess, guess, interactive=false }){
         const t = target ?? 50;
         const g = guess ?? 50;
         const halfDisc = `M 40 200 A 160 160 0 0 1 360 200 L 200 200 Z`;
+        const n1 = needleLine(g, 200, 52);
+        const n2 = needleLine(g, 200, 58);
+
+        // "hit" path: slightly inside the arc to feel natural
+        const hitArc = `M 54 200 A 146 146 0 0 1 346 200`;
 
         return `
-          <div class="dial">
+          <div class="dial ${interactive ? "isInteractive" : ""}" ${interactive ? `tabindex="0" role="slider" aria-label="Ajustar aguja" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${g}"` : ""} data-dial="${interactive ? "interactive" : "static"}">
             <div class="dialInner">
               <svg class="dialSvg" viewBox="0 0 400 250" aria-label="Dial Wavelength" role="img">
                 <defs>
@@ -843,23 +776,34 @@
 
                 ${showTarget ? scoringFanSVG(t) : ""}
 
-                ${showGuess ? `
-                  <g filter="url(#softShadow)">
-                    ${needleLineSVG(g, 200, 52, "var(--dialNeedle)", 7, 0.95)}
-                    ${needleLineSVG(g, 200, 58, "var(--dialNeedle2)", 3, 0.55)}
-                  </g>
-                ` : ""}
+                ${
+                  showGuess ? `
+                    <g filter="url(#softShadow)">
+                      <line id="${interactive ? "needleMain" : ""}" x1="${n1.x1.toFixed(2)}" y1="${n1.y1.toFixed(2)}" x2="${n1.x2.toFixed(2)}" y2="${n1.y2.toFixed(2)}"
+                            stroke="var(--dialNeedle)" stroke-width="7" stroke-linecap="round" opacity="0.95"></line>
+                      <line id="${interactive ? "needleHi" : ""}" x1="${n2.x1.toFixed(2)}" y1="${n2.y1.toFixed(2)}" x2="${n2.x2.toFixed(2)}" y2="${n2.y2.toFixed(2)}"
+                            stroke="var(--dialNeedle2)" stroke-width="3" stroke-linecap="round" opacity="0.55"></line>
+                    </g>
+                  ` : ""
+                }
 
                 <g filter="url(#softShadow)">
                   <circle cx="200" cy="200" r="58" fill="var(--dialCenter)"></circle>
                   <circle cx="200" cy="200" r="58" fill="none" stroke="rgba(0,0,0,.18)" stroke-width="2"></circle>
                   <circle cx="200" cy="200" r="20" fill="rgba(255,255,255,.12)"></circle>
                 </g>
+
+                ${
+                  interactive ? `
+                    <path id="dialHit" d="${hitArc}" fill="none" stroke="transparent" stroke-width="28" stroke-linecap="round"></path>
+                    <path d="${hitArc}" fill="none" stroke="rgba(0,0,0,.06)" stroke-width="2" stroke-linecap="round"></path>
+                  ` : ""
+                }
               </svg>
 
               <div class="dialLabels" aria-hidden="true">
                 <div class="side">${escapeHtml(left)}</div>
-                <div class="mid">${showTarget ? `Obj: ${t}` : `0–100`}</div>
+                <div class="mid">${showTarget ? `Obj: ${t}` : (interactive ? `Pos: ${g}` : `0–100`)}</div>
                 <div class="side" style="text-align:right;">${escapeHtml(right)}</div>
               </div>
             </div>
@@ -867,30 +811,361 @@
         `;
       }
 
+      const STATES = Object.freeze({
+        SETUP: "SETUP",
+        CARD: "CARD",
+        PSYCHIC: "PSYCHIC",
+        TEAM_GUESS: "TEAM_GUESS",
+        OPPONENT_BET: "OPPONENT_BET",
+        REVEAL: "REVEAL",
+        GAME_OVER: "GAME_OVER",
+      });
+
+      const store = {
+        state: STATES.SETUP,
+        goal: DEFAULT_GOAL,
+        teams: [
+          { name: "Equipo A", score: START_SCORES[0], psychicNum: 1, turns: 0 },
+          { name: "Equipo B", score: START_SCORES[1], psychicNum: 1, turns: 0 }
+        ],
+        activeTeam: 0,
+        suddenDeath: false,
+
+        deck: [],
+        card: null,
+        clue: "",
+        target: null,
+        guess: 50,
+        opponentBet: null,
+
+        history: [],
+      };
+
+      function buildDeck(){
+        store.deck = Array.from({length: CARDS.length}, (_,i)=>i);
+        for (let i=store.deck.length-1;i>0;i--){
+          const j = Math.floor(Math.random()*(i+1));
+          [store.deck[i], store.deck[j]] = [store.deck[j], store.deck[i]];
+        }
+      }
+
+      function drawCard(){
+        if (store.deck.length === 0) buildDeck();
+        return CARDS[store.deck.pop()];
+      }
+
+      function resetTurn(){
+        store.card = drawCard();
+        store.clue = "";
+        store.target = null;
+        store.guess = 50;
+        store.opponentBet = null;
+      }
+
+      const els = {
+        main: $("#mainArea"),
+        phaseTitle: $("#phaseTitle"),
+        phaseSubtitle: $("#phaseSubtitle"),
+        pillTurn: $("#pillTurn"),
+        pillGoal: $("#pillGoal"),
+        scoreSubtitle: $("#scoreSubtitle"),
+
+        aName: $("#aName"),
+        bName: $("#bName"),
+        aScore: $("#aScore"),
+        bScore: $("#bScore"),
+        aPsychic: $("#aPsychic"),
+        bPsychic: $("#bPsychic"),
+        aTurns: $("#aTurns"),
+        bTurns: $("#bTurns"),
+
+        hist: $("#hist"),
+
+        btnRules: $("#btnRules"),
+        modalRules: $("#modalRules"),
+        btnCloseRules: $("#btnCloseRules"),
+
+        btnFullscreen: $("#btnFullscreen"),
+        btnReset: $("#btnReset"),
+        btnPass: $("#btnPass"),
+
+        btnNextPA: $("#btnNextPA"),
+        btnNextPB: $("#btnNextPB"),
+
+        toast: $("#toast"),
+
+        passOverlay: $("#passOverlay"),
+        passTitle: $("#passTitle"),
+        passText: $("#passText"),
+        btnPassContinue: $("#btnPassContinue"),
+      };
+
+      function showToast(msg, ms=2400){
+        els.toast.textContent = msg;
+        els.toast.classList.add("show");
+        clearTimeout(showToast._t);
+        showToast._t = setTimeout(() => els.toast.classList.remove("show"), ms);
+      }
+
+      function openModal(m){ m.classList.add("show"); m.querySelector("button")?.focus(); }
+      function closeModal(m){ m.classList.remove("show"); }
+
+      function setPhase(title, subtitle){
+        els.phaseTitle.textContent = title;
+        els.phaseSubtitle.textContent = subtitle;
+      }
+
+      function teamLabel(i){ return store.teams[i].name; }
+      function otherTeam(i){ return 1 - i; }
+
+      function activeTurnLabel(){
+        const t = store.activeTeam;
+        return `${teamLabel(t)} (Psíquico #${store.teams[t].psychicNum})`;
+      }
+
+      function renderSidebar(){
+        els.pillGoal.innerHTML = `<strong>Objetivo:</strong> ${store.goal}`;
+        els.scoreSubtitle.textContent = store.suddenDeath ? `Sudden death — desempate` : `Primero a ${store.goal} puntos`;
+
+        els.aName.textContent = store.teams[0].name;
+        els.bName.textContent = store.teams[1].name;
+        els.aScore.textContent = store.teams[0].score;
+        els.bScore.textContent = store.teams[1].score;
+        els.aPsychic.textContent = store.teams[0].psychicNum;
+        els.bPsychic.textContent = store.teams[1].psychicNum;
+        els.aTurns.textContent = store.teams[0].turns;
+        els.bTurns.textContent = store.teams[1].turns;
+
+        const turnText = (store.state === STATES.SETUP || store.state === STATES.GAME_OVER)
+          ? "—"
+          : activeTurnLabel();
+        els.pillTurn.innerHTML = `<strong>Turno:</strong> ${escapeHtml(turnText)}`;
+
+        const items = store.history.slice(0,5);
+        els.hist.innerHTML = items.length ? items.map(h => `
+          <div class="hitem">
+            <div class="hrow">
+              <div><b>${escapeHtml(h.team)}</b> · <span>${escapeHtml(h.card)}</span></div>
+              <div class="mono">+${h.teamPts}${h.steal ? ` / +${h.stealPts} robo` : ""}</div>
+            </div>
+            <div class="hrow" style="margin-top:6px;">
+              <div class="mono">Obj ${h.target} · Pos ${h.guess}</div>
+              <div>${h.bet ? `Rival: <b>${h.bet}</b> (${h.betOk ? "acierta" : "falla"})` : "Rival: —"}</div>
+            </div>
+          </div>
+        `).join("") : `<div class="hitem">Aún no hay rondas.</div>`;
+      }
+
+      function queuePass(title, text){
+        els.passTitle.textContent = title;
+        els.passText.textContent = text;
+        els.passOverlay.classList.add("show");
+        els.btnPassContinue.focus();
+      }
+
+      function clearPass(){
+        els.passOverlay.classList.remove("show");
+      }
+
+      function nextPsychic(teamIdx){
+        store.teams[teamIdx].psychicNum += 1;
+      }
+
+      function setActiveTeam(teamIdx){
+        store.activeTeam = teamIdx;
+      }
+
+      function pushHistory(entry){
+        store.history.unshift(entry);
+        if (store.history.length > 20) store.history.length = 20;
+      }
+
+      function resolveTurn(){
+        const t = store.activeTeam;
+        const o = otherTeam(t);
+
+        const { teamPoints } = scoreGuess(store.target, store.guess);
+
+        let stealPts = 0;
+        let betOk = false;
+
+        const truth = leftRightBet(store.target, store.guess);
+        if (store.opponentBet){
+          betOk = (truth === "EITHER") ? true : (store.opponentBet === truth);
+          if (betOk) stealPts = 1; // always
+        }
+
+        store.teams[t].score += teamPoints;
+        if (stealPts) store.teams[o].score += stealPts;
+
+        pushHistory({
+          team: store.teams[t].name,
+          card: `${store.card.left} — ${store.card.right}`,
+          target: store.target,
+          guess: store.guess,
+          teamPts: teamPoints,
+          steal: stealPts ? true : false,
+          stealPts,
+          bet: store.opponentBet,
+          betOk
+        });
+
+        const scores = [store.teams[0].score, store.teams[1].score];
+        if (isTieAtGoalOrAbove(scores, store.goal)) store.suddenDeath = true;
+
+        if (store.suddenDeath){
+          if (hasWinner(scores, store.goal)) { store.state = STATES.GAME_OVER; return; }
+        } else {
+          if (hasWinner(scores, store.goal)) { store.state = STATES.GAME_OVER; return; }
+        }
+
+        const needExtra = applyCatchUpRule(scores, t, teamPoints);
+        if (needExtra){
+          nextPsychic(t);
+          resetTurn();
+          store.state = STATES.CARD;
+          queuePass("Catch-up: misma equipo repite", `${store.teams[t].name} ha hecho 4 puntos pero sigue perdiendo. Juega otra ronda. Solo el nuevo Psíquico mira el objetivo.`);
+          return;
+        }
+
+        setActiveTeam(o);
+        nextPsychic(o);
+        resetTurn();
+        store.state = STATES.CARD;
+        queuePass("Cambiar de equipo", `Turno para ${store.teams[o].name}. Solo su Psíquico debe mirar el objetivo en la fase Psíquico.`);
+      }
+
+      // ---- Interactive needle handling (no slider) ----
+      function attachInteractiveDialHandlers(){
+        if (store.state !== STATES.TEAM_GUESS) return;
+
+        const dial = els.main.querySelector('.dial[data-dial="interactive"]');
+        if (!dial) return;
+        const svg = dial.querySelector("svg");
+        const hit = dial.querySelector("#dialHit");
+        const needleMain = dial.querySelector("#needleMain");
+        const needleHi = dial.querySelector("#needleHi");
+
+        if (!svg || !hit || !needleMain || !needleHi) return;
+
+        let dragging = false;
+
+        const updateNeedle = (value, commit=false) => {
+          const v = clamp(value, 0, 100);
+          if (commit) store.guess = v;
+
+          const n1 = needleLine(v, 200, 52);
+          const n2 = needleLine(v, 200, 58);
+
+          needleMain.setAttribute("x1", n1.x1.toFixed(2));
+          needleMain.setAttribute("y1", n1.y1.toFixed(2));
+          needleMain.setAttribute("x2", n1.x2.toFixed(2));
+          needleMain.setAttribute("y2", n1.y2.toFixed(2));
+
+          needleHi.setAttribute("x1", n2.x1.toFixed(2));
+          needleHi.setAttribute("y1", n2.y1.toFixed(2));
+          needleHi.setAttribute("x2", n2.x2.toFixed(2));
+          needleHi.setAttribute("y2", n2.y2.toFixed(2));
+
+          dial.setAttribute("aria-valuenow", String(v));
+
+          // Also update the small mid label without rerendering
+          const mid = dial.querySelector(".dialLabels .mid");
+          if (mid) mid.textContent = `Pos: ${v}`;
+          const posPill = els.main.querySelector("#posPill");
+          if (posPill) posPill.textContent = String(v);
+        };
+
+        const pointerToValue = (clientX, clientY) => {
+          const rect = svg.getBoundingClientRect();
+          const x = ((clientX - rect.left) / rect.width) * 400;
+          const y = ((clientY - rect.top) / rect.height) * 250;
+
+          const cx = 200, cy = 200;
+          const rad = Math.atan2((cy - y), (x - cx)); // [-pi, pi]
+          const clamped = clamp(rad, 0, Math.PI);      // only semicircle (top)
+          return radToValue(clamped);
+        };
+
+        const onDown = (e) => {
+          dragging = true;
+          dial.focus({ preventScroll:true });
+          const v = pointerToValue(e.clientX, e.clientY);
+          updateNeedle(v, true);
+          try{ hit.setPointerCapture(e.pointerId); } catch {}
+          e.preventDefault();
+        };
+        const onMove = (e) => {
+          if (!dragging) return;
+          const v = pointerToValue(e.clientX, e.clientY);
+          updateNeedle(v, true);
+          e.preventDefault();
+        };
+        const onUp = (e) => {
+          dragging = false;
+          try{ hit.releasePointerCapture(e.pointerId); } catch {}
+          e.preventDefault();
+        };
+
+        hit.addEventListener("pointerdown", onDown, { passive:false });
+        hit.addEventListener("pointermove", onMove, { passive:false });
+        hit.addEventListener("pointerup", onUp, { passive:false });
+        hit.addEventListener("pointercancel", onUp, { passive:false });
+
+        // Keyboard accessibility
+        dial.addEventListener("keydown", (e) => {
+          const step = e.shiftKey ? 5 : 1;
+          if (e.key === "ArrowLeft"){
+            updateNeedle(store.guess - step, true);
+            e.preventDefault();
+          } else if (e.key === "ArrowRight"){
+            updateNeedle(store.guess + step, true);
+            e.preventDefault();
+          } else if (e.key === "Home"){
+            updateNeedle(0, true);
+            e.preventDefault();
+          } else if (e.key === "End"){
+            updateNeedle(100, true);
+            e.preventDefault();
+          }
+        });
+
+        // Make sure initial UI matches store
+        updateNeedle(store.guess, false);
+      }
+
       function render(){
         renderSidebar();
-        const s = store.state;
+        const t = store.activeTeam;
+        const o = otherTeam(t);
 
-        if (s === STATES.SETUP){
-          setPhase("Listo para jugar", "Pon nombres (opcional) y pulsa Empezar.");
+        if (store.state === STATES.SETUP){
+          setPhase("Configurar partida", "Define equipos, objetivo y empieza.");
           els.main.innerHTML = `
             <div class="col" style="gap:14px;">
               <div class="row">
                 <div class="grow">
-                  <label for="inpP1">Nombre Jugador 1</label>
-                  <input id="inpP1" class="input" value="${escapeHtml(store.players[0].name)}" />
+                  <label for="inpA">Nombre Equipo A</label>
+                  <input id="inpA" class="input" value="${escapeHtml(store.teams[0].name)}" />
                 </div>
                 <div class="grow">
-                  <label for="inpP2">Nombre Jugador 2</label>
-                  <input id="inpP2" class="input" value="${escapeHtml(store.players[1].name)}" />
+                  <label for="inpB">Nombre Equipo B</label>
+                  <input id="inpB" class="input" value="${escapeHtml(store.teams[1].name)}" />
                 </div>
               </div>
 
-              <div class="notice">
-                <b>Cómo se juega:</b> el Psíquico ve el objetivo y da una pista. El otro ajusta el dial. Se alternan roles cada ronda.
+              <div class="row">
+                <div class="grow">
+                  <label for="inpGoal">Puntos objetivo</label>
+                  <input id="inpGoal" class="input" inputmode="numeric" value="${store.goal}" />
+                </div>
+                <div class="grow">
+                  <label>Inicio</label>
+                  <div class="notice">Al abrir, ambos equipos empiezan en <b>0</b>.</div>
+                </div>
               </div>
 
-              ${dialHTML({ left:"Extremo izquierdo", right:"Extremo derecho", showTarget:false, target:null, showGuess:true, guess: 50 })}
+              ${dialHTML({ left:"Extremo izquierdo", right:"Extremo derecho", showTarget:false, showGuess:true, guess:50 })}
 
               <div class="row" style="justify-content:space-between;">
                 <span class="pill"><strong>Cartas:</strong> ${CARDS.length}</span>
@@ -899,25 +1174,40 @@
             </div>
           `;
 
-          $("#inpP1").addEventListener("input", (e)=>{ store.players[0].name = (e.target.value||"").trim() || "Jugador 1"; renderSidebar(); });
-          $("#inpP2").addEventListener("input", (e)=>{ store.players[1].name = (e.target.value||"").trim() || "Jugador 2"; renderSidebar(); });
+          $("#inpA").addEventListener("input", (e)=>{ store.teams[0].name = (e.target.value||"").trim() || "Equipo A"; renderSidebar(); });
+          $("#inpB").addEventListener("input", (e)=>{ store.teams[1].name = (e.target.value||"").trim() || "Equipo B"; renderSidebar(); });
+
+          $("#inpGoal").addEventListener("input", (e)=>{
+            const v = parseInt(String(e.target.value||"").replace(/[^\d]/g,""), 10);
+            store.goal = clamp(Number.isFinite(v)?v:DEFAULT_GOAL, 1, 999);
+            renderSidebar();
+          });
 
           $("#btnStart").addEventListener("click", () => {
-            store.players[0].score = 0;
-            store.players[1].score = 0;
-            store.psychicIndex = 0;
+            store.goal = clamp(store.goal, 1, 999);
+            store.teams[0].score = START_SCORES[0];
+            store.teams[1].score = START_SCORES[1];
+            store.teams[0].psychicNum = 1;
+            store.teams[1].psychicNum = 1;
+            store.teams[0].turns = 0;
+            store.teams[1].turns = 0;
+
+            store.history = [];
+            store.suddenDeath = false;
+
             buildDeck();
-            resetRound();
-            store.state = STATES.ROUND;
-            showToast("Ronda 1: el Psíquico prepara la pista.");
+            setActiveTeam(0);
+            resetTurn();
+            store.state = STATES.CARD;
+
+            queuePass("Inicio", `Empieza ${store.teams[0].name}. Solo su Psíquico mira el objetivo en la fase Psíquico.`);
             render();
           });
           return;
         }
 
-        if (s === STATES.ROUND){
-          const psychic = store.psychicIndex;
-          setPhase("Nueva ronda", `${store.players[psychic].name} es Psíquico. Selecciona carta y (opcional) escribe la pista.`);
+        if (store.state === STATES.CARD){
+          setPhase("Carta", `${store.teams[t].name} activo. Se muestran extremos a todos. Luego: Psíquico.`);
           els.main.innerHTML = `
             <div class="col" style="gap:14px;">
               <div class="row" style="justify-content:space-between; align-items:flex-start;">
@@ -925,289 +1215,323 @@
                   <b style="font-size:14px;">Carta</b>
                   <span class="pill"><strong>${escapeHtml(store.card.left)}</strong> — <strong>${escapeHtml(store.card.right)}</strong></span>
                 </div>
-                <div class="row">
-                  <button class="btn" id="btnNewCard">Otra carta</button>
-                </div>
+                <div class="row"><button class="btn" id="btnNewCard">Otra carta</button></div>
               </div>
 
-              ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:false, target:null, showGuess:true, guess: 50 })}
+              ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:false, showGuess:true, guess:50 })}
 
               <div class="row">
                 <div class="grow">
-                  <label for="inpClue">Pista (opcional, se mostrará tras la revelación)</label>
-                  <input id="inpClue" class="input" value="${escapeHtml(store.clue)}" placeholder="Ej: “tostadora”, “domingo de resaca”…"/>
+                  <label for="inpClue">Pista (opcional, para historial)</label>
+                  <input id="inpClue" class="input" value="${escapeHtml(store.clue)}" placeholder="Ej: “lunes por la mañana”…"/>
                 </div>
               </div>
 
+              <div class="notice">Siguiente: fase <b>Psíquico</b> (solo mira el Psíquico del equipo activo).</div>
+
               <div class="row" style="justify-content:space-between;">
-                <button class="btn" id="btnPassToPsychic">Ir a Psíquico (mostrar objetivo)</button>
-                <button class="btn primary" id="btnGoPsychic">Estoy listo</button>
+                <button class="btn" id="btnPassToPsychic">Pasar dispositivo</button>
+                <button class="btn primary" id="btnGoPsychic">Ir a Psíquico</button>
               </div>
             </div>
           `;
 
-          $("#btnNewCard").addEventListener("click", () => {
-            resetRound();
-            showToast("Carta nueva.");
-            render();
-          });
-
-          $("#inpClue").addEventListener("input", (e)=>{
-            store.clue = (e.target.value||"").trim().slice(0, 140);
-          });
-
-          $("#btnPassToPsychic").addEventListener("click", () => {
-            showToast("⚠️ Solo el Psíquico debe mirar ahora.");
-          });
-
+          $("#inpClue").addEventListener("input", (e)=>{ store.clue = (e.target.value||"").trim().slice(0, 140); });
+          $("#btnNewCard").addEventListener("click", () => { store.card = drawCard(); store.clue=""; render(); });
+          $("#btnPassToPsychic").addEventListener("click", () => queuePass("Solo Psíquico", `Ahora mira el Psíquico de ${store.teams[t].name}. Objetivo secreto.`));
           $("#btnGoPsychic").addEventListener("click", () => {
             store.target = randomTarget();
             store.state = STATES.PSYCHIC;
-            showToast("Objetivo generado. Solo el Psíquico mira.");
+            queuePass("Solo Psíquico", `Objetivo generado. Solo el Psíquico de ${store.teams[t].name} debe mirar ahora.`);
             render();
           });
           return;
         }
 
-        if (s === STATES.PSYCHIC){
-          const psychic = store.psychicIndex;
-          setPhase("Psíquico", `${store.players[psychic].name}: mira el objetivo y di la pista. Luego oculta y pasa el dispositivo.`);
+        if (store.state === STATES.PSYCHIC){
+          setPhase("Psíquico (secreto)", `${store.teams[t].name}: el Psíquico ve objetivo y da la pista. Luego oculta y pasa al equipo.`);
           els.main.innerHTML = `
             <div class="col" style="gap:14px;">
-              <div class="notice">
-                <b>Solo el Psíquico</b>. No uses números. Una sola idea. Cuando termines, pulsa <b>Ocultar objetivo</b>.
-              </div>
-
+              <div class="notice"><b>Solo el Psíquico</b>. No uses números. Da una pista para orientar la aguja.</div>
               ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:true, target: store.target, showGuess:false, guess: store.guess })}
-
               <div class="row">
                 <div class="grow">
-                  <label for="inpClue2">Pista (opcional, para recordarla)</label>
-                  <input id="inpClue2" class="input" value="${escapeHtml(store.clue)}" placeholder="(Opcional) escribe la pista que has dicho"/>
+                  <label for="inpClue2">Pista (opcional, para registrarla)</label>
+                  <input id="inpClue2" class="input" value="${escapeHtml(store.clue)}" placeholder="(Opcional) escribe la pista"/>
                 </div>
               </div>
-
               <div class="row" style="justify-content:space-between;">
-                <button class="btn" id="btnBackRound">Volver</button>
-                <button class="btn primary" id="btnHide">Ocultar objetivo / Pasar al otro jugador</button>
+                <button class="btn" id="btnBackCard">Volver (Carta)</button>
+                <button class="btn primary" id="btnHideToTeam">Ocultar objetivo / Pasar al equipo</button>
               </div>
             </div>
           `;
 
-          $("#inpClue2").addEventListener("input", (e)=>{
-            store.clue = (e.target.value||"").trim().slice(0, 140);
-          });
+          $("#inpClue2").addEventListener("input", (e)=>{ store.clue = (e.target.value||"").trim().slice(0, 140); });
 
-          $("#btnBackRound").addEventListener("click", () => {
-            if (!confirm("¿Volver a Nueva ronda? Se regenerará el objetivo al volver a Psíquico.")) return;
+          $("#btnBackCard").addEventListener("click", () => {
+            if (!confirm("¿Volver a Carta? Se regenerará el objetivo al volver a Psíquico.")) return;
             store.target = null;
-            store.state = STATES.ROUND;
+            store.state = STATES.CARD;
             render();
           });
 
-          $("#btnHide").addEventListener("click", () => {
-            store.state = STATES.GUESS;
-            showToast("Ahora adivina el otro jugador (sin objetivo).");
+          $("#btnHideToTeam").addEventListener("click", () => {
+            store.state = STATES.TEAM_GUESS;
+            queuePass("Equipo activo adivina", `Ahora adivina ${store.teams[t].name}. El objetivo NO debe verse.`);
             render();
           });
           return;
         }
 
-        if (s === STATES.GUESS){
-          const psychic = store.psychicIndex;
-          const guesser = 1 - psychic;
-          setPhase("Adivinar", `${store.players[guesser].name}: ajusta el dial (0–100) y bloquea tu respuesta.`);
+        if (store.state === STATES.TEAM_GUESS){
+          setPhase("Equipo (mover aguja)", `${store.teams[t].name}: mueve la aguja directamente en el dial y bloquea.`);
           els.main.innerHTML = `
-            <div class="col" style="gap:14px;">
+            <div class="col" style="gap:12px;">
               <div class="notice">
-                Objetivo oculto. Ajusta la posición. Cuando estés seguro, bloquea.
+                Objetivo oculto. <b>Toca/arrastra</b> sobre el semicírculo para colocar la aguja.
               </div>
 
-              ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:false, target:null, showGuess:true, guess: store.guess })}
+              ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:false, showGuess:true, guess: store.guess, interactive:true })}
 
-              <div class="sliderRow">
-                <label for="rngGuess">Posición (0–100)</label>
-                <input id="rngGuess" type="range" min="0" max="100" value="${store.guess}" aria-label="Selector de posición"/>
-                <div class="numRow">
-                  <span>0</span>
-                  <span>Actual: <b id="gVal">${store.guess}</b></span>
-                  <span>100</span>
-                </div>
+              <div class="dialHelp">
+                <span>Posición actual: <span class="kbd mono" id="posPill">${store.guess}</span></span>
+                <span>Teclado: <span class="kbd">←/→</span> (±1) · <span class="kbd">Shift</span>+<span class="kbd">←/→</span> (±5)</span>
               </div>
 
-              <div class="row" style="justify-content:space-between;">
+              <!-- Hidden input for screen readers (optional fallback) -->
+              <label class="srOnly" for="srRange">Posición 0 a 100</label>
+              <input class="srOnly" id="srRange" type="range" min="0" max="100" value="${store.guess}" />
+
+              <div class="row" style="justify-content:space-between; margin-top:6px;">
                 <button class="btn" id="btnBackPsychic">Volver (Psíquico)</button>
-                <button class="btn primary" id="btnLock">Bloquear y revelar</button>
+                <button class="btn primary" id="btnLock">Bloquear respuesta</button>
               </div>
             </div>
           `;
 
-          const rng = $("#rngGuess");
-          const gVal = $("#gVal");
+          attachInteractiveDialHandlers();
 
-          rng.addEventListener("input", () => {
-            store.guess = clamp(parseInt(rng.value,10), 0, 100);
-            gVal.textContent = store.guess;
-            render();
-            store.state = STATES.GUESS;
+          // Keep sr range in sync if used
+          const sr = $("#srRange");
+          sr.addEventListener("input", () => {
+            store.guess = clamp(parseInt(sr.value,10), 0, 100);
+            render(); // re-render is OK here because it's only an accessibility fallback
+            store.state = STATES.TEAM_GUESS;
           });
 
           $("#btnBackPsychic").addEventListener("click", () => {
             if (!confirm("¿Volver a Psíquico? Asegúrate de que solo el Psíquico mire.")) return;
             store.state = STATES.PSYCHIC;
+            queuePass("Solo Psíquico", `Solo el Psíquico de ${store.teams[t].name} debe mirar el objetivo.`);
             render();
           });
 
           $("#btnLock").addEventListener("click", () => {
-            if (!confirm(`¿Bloquear ${store.guess}?`)) return;
-            store.scored = scoreGuess(store.target, store.guess);
+            if (!confirm(`¿Bloquear posición ${store.guess}?`)) return;
+            store.state = STATES.OPPONENT_BET;
+            queuePass("Rival apuesta", `Ahora apuesta ${store.teams[o].name}: LEFT o RIGHT.`);
+            render();
+          });
+          return;
+        }
+
+        if (store.state === STATES.OPPONENT_BET){
+          setPhase("Rival (apuesta)", `${store.teams[o].name}: apuesta LEFT/RIGHT. El objetivo sigue oculto.`);
+          els.main.innerHTML = `
+            <div class="col" style="gap:14px;">
+              <div class="notice">Si aciertas, robas <b>+1</b> <b>siempre</b>.</div>
+              ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:false, showGuess:true, guess: store.guess })}
+              <div class="row" style="justify-content:center; gap:12px;">
+                <button class="btn alt" id="btnLeft">LEFT</button>
+                <button class="btn alt" id="btnRight">RIGHT</button>
+              </div>
+              <div class="row" style="justify-content:space-between;">
+                <button class="btn" id="btnBackGuess">Volver (Equipo)</button>
+                <button class="btn primary" id="btnReveal" disabled>Revelar</button>
+              </div>
+            </div>
+          `;
+
+          const btnReveal = $("#btnReveal");
+          function setBet(bet){
+            store.opponentBet = bet;
+            $("#btnLeft").classList.toggle("primary", bet==="LEFT");
+            $("#btnRight").classList.toggle("primary", bet==="RIGHT");
+            btnReveal.disabled = false;
+          }
+          $("#btnLeft").addEventListener("click", () => setBet("LEFT"));
+          $("#btnRight").addEventListener("click", () => setBet("RIGHT"));
+
+          $("#btnBackGuess").addEventListener("click", () => {
+            store.opponentBet = null;
+            store.state = STATES.TEAM_GUESS;
+            queuePass("Equipo activo adivina", `Vuelve a adivinar ${store.teams[t].name}. Objetivo oculto.`);
+            render();
+          });
+
+          btnReveal.addEventListener("click", () => {
+            if (!confirm("¿Revelar objetivo y puntuar?")) return;
             store.state = STATES.REVEAL;
             render();
           });
           return;
         }
 
-        if (s === STATES.REVEAL){
-          const psychic = store.psychicIndex;
-          const guesser = 1 - psychic;
+        if (store.state === STATES.REVEAL){
+          const { teamPoints } = scoreGuess(store.target, store.guess);
+          const truth = leftRightBet(store.target, store.guess);
+          const betOk = store.opponentBet ? (truth==="EITHER" ? true : store.opponentBet===truth) : false;
+          const stealPts = (store.opponentBet && betOk) ? 1 : 0;
 
-          const pts = store.scored?.pts ?? 0;
-          setPhase("Revelación", `Objetivo: ${store.target} · Posición: ${store.guess} · +${pts} puntos para ${store.players[guesser].name}`);
+          setPhase("Revelación", `Obj: ${store.target} · Pos: ${store.guess} · +${teamPoints} ${store.teams[t].name}${stealPts?` · Rival +${stealPts}`:""}`);
 
           els.main.innerHTML = `
             <div class="col" style="gap:14px;">
               ${dialHTML({ left: store.card.left, right: store.card.right, showTarget:true, target: store.target, showGuess:true, guess: store.guess })}
-
               <div class="row">
-                <span class="pill"><strong>Objetivo:</strong> ${store.target}</span>
-                <span class="pill"><strong>Posición:</strong> ${store.guess}</span>
-                <span class="pill"><strong>Puntos:</strong> +${pts}</span>
+                <span class="pill"><strong>Objetivo:</strong> <span class="mono">${store.target}</span></span>
+                <span class="pill"><strong>Posición:</strong> <span class="mono">${store.guess}</span></span>
+                <span class="pill"><strong>Puntos:</strong> +<span class="mono">${teamPoints}</span></span>
+                <span class="pill"><strong>Robo:</strong> ${store.opponentBet ? `<span class="mono">${store.opponentBet}</span> (${betOk?"acierta":"falla"})${stealPts?` · +${stealPts}`:""}` : "—"}</span>
               </div>
-
-              <div class="notice">
-                <b>Carta:</b> ${escapeHtml(store.card.left)} — ${escapeHtml(store.card.right)}<br/>
-                <b>Pista:</b> ${escapeHtml(store.clue || "—")}
-              </div>
-
               <div class="row" style="justify-content:space-between;">
-                <button class="btn" id="btnBackGuess">Volver (Adivinar)</button>
-                <button class="btn primary" id="btnNext">Siguiente ronda (cambiar roles)</button>
+                <button class="btn" id="btnBackBet">Volver (Rival)</button>
+                <button class="btn primary" id="btnApply">Aplicar puntos / Siguiente</button>
               </div>
             </div>
           `;
 
-          $("#btnBackGuess").addEventListener("click", () => {
-            if (!confirm("¿Volver a Adivinar? Mantendrás el mismo objetivo.")) return;
-            store.state = STATES.GUESS;
+          $("#btnBackBet").addEventListener("click", () => {
+            if (!confirm("¿Volver a la apuesta del rival?")) return;
+            store.state = STATES.OPPONENT_BET;
+            queuePass("Rival apuesta", `Apuesta ${store.teams[o].name}.`);
             render();
           });
 
-          $("#btnNext").addEventListener("click", () => {
-            store.players[guesser].score += pts;
-
-            if (store.players[0].score >= store.goal || store.players[1].score >= store.goal){
-              store.state = STATES.OVER;
-              render();
-              showToast("Fin de partida.");
-              return;
-            }
-
-            store.psychicIndex = 1 - store.psychicIndex;
-            resetRound();
-            store.state = STATES.ROUND;
-            showToast("Roles cambiados. Nueva ronda.");
+          $("#btnApply").addEventListener("click", () => {
+            store.teams[t].turns += 1;
+            resolveTurn();
             render();
           });
           return;
         }
 
-        if (s === STATES.OVER){
-          const s1 = store.players[0].score;
-          const s2 = store.players[1].score;
-          const winner = s1 === s2 ? "Empate" : (s1 > s2 ? store.players[0].name : store.players[1].name);
-
-          setPhase("Fin de partida", winner === "Empate" ? "Empate." : `Ganador: ${winner}`);
+        if (store.state === STATES.GAME_OVER){
+          const scores = [store.teams[0].score, store.teams[1].score];
+          const w = winnerIndex(scores);
+          setPhase("Fin de partida", w===null ? "Empate." : `Ganador: ${store.teams[w].name}`);
           els.main.innerHTML = `
             <div class="col" style="gap:14px;">
               <div class="notice">
                 <b style="font-size:14px;">Resultado</b><br/>
                 <div style="margin-top:10px" class="row">
-                  <span class="pill"><strong>${escapeHtml(store.players[0].name)}:</strong> ${s1}</span>
-                  <span class="pill"><strong>${escapeHtml(store.players[1].name)}:</strong> ${s2}</span>
+                  <span class="pill"><strong>${escapeHtml(store.teams[0].name)}:</strong> <span class="mono">${scores[0]}</span></span>
+                  <span class="pill"><strong>${escapeHtml(store.teams[1].name)}:</strong> <span class="mono">${scores[1]}</span></span>
                 </div>
               </div>
-
-              ${dialHTML({ left:"—", right:"—", showTarget:false, target:null, showGuess:true, guess: 50 })}
-
-              <div class="row" style="justify-content:center;">
+              ${dialHTML({ left:"—", right:"—", showTarget:false, showGuess:true, guess:50 })}
+              <div class="row" style="justify-content:center; gap:10px;">
                 <button class="btn primary" id="btnPlayAgain">Jugar otra vez</button>
-                <button class="btn" id="btnBackSetup">Cambiar nombres</button>
+                <button class="btn" id="btnBackSetup">Volver a setup</button>
               </div>
             </div>
           `;
 
           $("#btnPlayAgain").addEventListener("click", () => {
-            store.players[0].score = 0;
-            store.players[1].score = 0;
-            store.psychicIndex = 0;
+            store.teams[0].score = START_SCORES[0];
+            store.teams[1].score = START_SCORES[1];
+            store.teams[0].psychicNum = 1;
+            store.teams[1].psychicNum = 1;
+            store.teams[0].turns = 0;
+            store.teams[1].turns = 0;
+            store.history = [];
+            store.suddenDeath = false;
+
             buildDeck();
-            resetRound();
-            store.state = STATES.ROUND;
-            showToast("Nueva partida.");
+            setActiveTeam(0);
+            resetTurn();
+            store.state = STATES.CARD;
+            queuePass("Nueva partida", `Empieza ${store.teams[0].name}. Solo su Psíquico mira el objetivo.`);
             render();
           });
 
-          $("#btnBackSetup").addEventListener("click", () => {
-            store.state = STATES.SETUP;
-            render();
-          });
+          $("#btnBackSetup").addEventListener("click", () => { store.state = STATES.SETUP; render(); });
           return;
         }
       }
 
+      // Global UI handlers
       els.btnRules.addEventListener("click", () => openModal(els.modalRules));
       els.btnCloseRules.addEventListener("click", () => closeModal(els.modalRules));
       els.modalRules.addEventListener("click", (e)=>{ if (e.target === els.modalRules) closeModal(els.modalRules); });
-      window.addEventListener("keydown", (e)=>{ if (e.key === "Escape") closeModal(els.modalRules); });
+      window.addEventListener("keydown", (e)=>{ if (e.key === "Escape") { closeModal(els.modalRules); clearPass(); } });
 
       els.btnFullscreen.addEventListener("click", async () => {
         try{
-          if (!document.fullscreenElement){
-            await document.documentElement.requestFullscreen();
-            showToast("Pantalla completa.");
-          } else {
-            await document.exitFullscreen();
-            showToast("Salir de pantalla completa.");
-          }
-        } catch {
-          showToast("Pantalla completa no disponible.");
-        }
-      });
-
-      els.btnPass.addEventListener("click", () => {
-        const msg =
-          store.state === STATES.PSYCHIC ? "📱 Solo el PSÍQUICO mira ahora." :
-          store.state === STATES.GUESS ? "📱 Ahora adivina el otro jugador (sin objetivo)." :
-          store.state === STATES.REVEAL ? "📱 Revelación: puede mirar todo el mundo." :
-          "📱 Estado actual listo.";
-        showToast(msg, 2600);
+          if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+          else await document.exitFullscreen();
+        } catch { showToast("Pantalla completa no disponible."); }
       });
 
       els.btnReset.addEventListener("click", () => {
-        if (!confirm("¿Reset total? Reinicia puntuación y vuelve al inicio.")) return;
-        store.players[0].score = 0;
-        store.players[1].score = 0;
-        store.psychicIndex = 0;
+        if (!confirm("¿Reset total? Vuelve al setup.")) return;
+        store.state = STATES.SETUP;
+        store.goal = DEFAULT_GOAL;
+        store.teams[0].name = "Equipo A";
+        store.teams[1].name = "Equipo B";
+        store.teams[0].score = START_SCORES[0];
+        store.teams[1].score = START_SCORES[1];
+        store.teams[0].psychicNum = 1;
+        store.teams[1].psychicNum = 1;
+        store.teams[0].turns = 0;
+        store.teams[1].turns = 0;
+        store.history = [];
+        store.suddenDeath = false;
+        store.deck = [];
         store.card = null;
         store.clue = "";
         store.target = null;
         store.guess = 50;
-        store.scored = null;
-        store.deck = [];
-        store.state = STATES.SETUP;
-        showToast("Reset completado.");
+        store.opponentBet = null;
+        clearPass();
         render();
       });
+
+      els.btnPass.addEventListener("click", () => {
+        const msg =
+          store.state === STATES.PSYCHIC ? `Solo Psíquico de ${teamLabel(store.activeTeam)}.` :
+          store.state === STATES.TEAM_GUESS ? `Adivina ${teamLabel(store.activeTeam)} (objetivo oculto).` :
+          store.state === STATES.OPPONENT_BET ? `Apuesta ${teamLabel(otherTeam(store.activeTeam))} (objetivo oculto).` :
+          store.state === STATES.REVEAL ? `Revelación: puede mirar todo el mundo.` :
+          store.state === STATES.CARD ? `Carta: puede mirar todo el mundo.` : `Listo.`;
+        queuePass("Pasar dispositivo", msg);
+      });
+
+      els.btnPassContinue.addEventListener("click", () => clearPass());
+      els.btnNextPA.addEventListener("click", () => { store.teams[0].psychicNum += 1; renderSidebar(); });
+      els.btnNextPB.addEventListener("click", () => { store.teams[1].psychicNum += 1; renderSidebar(); });
+
+      function runSelfTests(){
+        const cases = [
+          {t:50,g:50,pts:4},{t:50,g:53,pts:4},{t:50,g:54,pts:3},
+          {t:50,g:56,pts:3},{t:50,g:57,pts:2},{t:50,g:60,pts:2},{t:50,g:61,pts:0},
+        ];
+        for (const c of cases){
+          const r = scoreGuess(c.t,c.g);
+          if (r.teamPoints !== c.pts) throw new Error(`SelfTest fail scoreGuess t=${c.t} g=${c.g}: got ${r.teamPoints} expected ${c.pts}`);
+        }
+        if (leftRightBet(40,60)!=="LEFT") throw new Error("SelfTest fail LEFT");
+        if (leftRightBet(80,60)!=="RIGHT") throw new Error("SelfTest fail RIGHT");
+        if (leftRightBet(60,60)!=="EITHER") throw new Error("SelfTest fail EITHER");
+        // rad/value roundtrip sanity
+        for (let v of [0,10,25,50,75,90,100]){
+          const back = radToValue(valueToRad(v));
+          if (Math.abs(back - v) > 1) throw new Error("SelfTest fail rad/value");
+        }
+        return true;
+      }
+      try{ runSelfTests(); } catch(e){ console.error(e); showToast("Error interno en tests. Revisa consola.", 4500); }
 
       render();
     })();
